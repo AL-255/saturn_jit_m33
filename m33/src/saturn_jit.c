@@ -218,6 +218,29 @@ static void emit_inline_xchg_field_a(emit_ctx_t *e, int a_id, int b_id) {
 #define EMIT_ITTE_HS(e)   emit_hw((e), 0xBF26)
 #define EMIT_ITTE_LO(e)   emit_hw((e), 0xBF3A)
 
+/* UBFX Rd, Rn, #lsb, #width  (T1) :
+ *   1111 0011 110 Rn | 0 imm3 Rd imm2 0 widthm1
+ * imm3:imm2 = lsb (5 bits, 0..31); widthm1 = width-1 (5 bits → width 1..32)
+ */
+static void emit_ubfx(emit_ctx_t *e, int rd, int rn, int lsb, int width) {
+    uint32_t imm3 = (lsb >> 2) & 7;
+    uint32_t imm2 = lsb & 3;
+    uint32_t hi = 0xF3C0 | (rn & 0xf);
+    uint32_t lo = (imm3 << 12) | ((rd & 0xf) << 8) | (imm2 << 6) | ((width - 1) & 0x1f);
+    emit_w32(e, (hi << 16) | lo);
+}
+
+/* AND.W Rd, Rn, #imm (modified-immediate, T1) — used to mask to a
+ * nibble (imm = 0x0f). Encoding (S=0): 1111 0i 00 0000 Rn | 0 imm3 Rd imm8 */
+static void emit_and_imm_small(emit_ctx_t *e, int rd, int rn, uint16_t imm) {
+    uint32_t i    = (imm >> 11) & 1;
+    uint32_t imm3 = (imm >> 8) & 7;
+    uint32_t imm8 =  imm & 0xff;
+    uint32_t hi = 0xF000 | (i << 10) | (rn & 0xf);
+    uint32_t lo = (imm3 << 12) | ((rd & 0xf) << 8) | imm8;
+    emit_w32(e, (hi << 16) | lo);
+}
+
 /* CBZ Rn, label  (16-bit): 1011 0001 i imm5 Rn
  * The branch goes forward by (imm5 << 1) + 4 bytes from PC, in range
  * 4..130. We emit a placeholder and patch later (similar to B.W). */
@@ -323,11 +346,17 @@ static void emit_inline_add_a(emit_ctx_t *e, int dst_id, int src_id) {
         emit_ldrb_smart(e, 1, 4, src + i);
         emit_hw(e, 0x1800 | (1 << 6) | (0 << 3) | 0);   /* adds r0, r0, r1 */
         emit_hw(e, 0x1800 | (2 << 6) | (0 << 3) | 0);   /* adds r0, r0, r2 */
+#if JIT_OPT_FLAT_CARRY
+        /* sum is 0..31. carry-out = bit 4; result nibble = sum & 0xf. */
+        emit_ubfx(e, 2, 0, 4, 1);
+        emit_and_imm_small(e, 0, 0, 0x0f);
+#else
         emit_cmp_imm_t2(e, 0, 16);
         EMIT_ITTE_HS(e);
         emit_subs_lo_imm8(e, 0, 16);
         emit_mov_lo_imm8(e, 2, 1);
         emit_mov_lo_imm8(e, 2, 0);
+#endif
         emit_strb_smart(e, 0, 4, dst + i);
     }
     emit_strb_smart(e, 2, 4, OFS(carry));
@@ -364,10 +393,18 @@ static void emit_inline_sub_a(emit_ctx_t *e, int dst_id, int a_id, int b_id) {
         emit_ldrb_smart(e, 1, 4, bof + i);
         emit_hw(e, 0x1A00 | (1 << 6) | (0 << 3) | 0);   /* subs r0, r0, r1 */
         emit_hw(e, 0x1A00 | (2 << 6) | (0 << 3) | 0);   /* subs r0, r0, r2 */
+#if JIT_OPT_FLAT_CARRY
+        /* If r0 < 0 (borrow), the 32-bit result has bit 4 set (since
+         * -1..-16 = 0xFFFFFFF0..0xFFFFFFFF). UBFX extracts it; AND #0xf
+         * does the modular wrap. */
+        emit_ubfx(e, 2, 0, 4, 1);
+        emit_and_imm_small(e, 0, 0, 0x0f);
+#else
         EMIT_ITTE_LO(e);
         emit_adds_lo_imm8(e, 0, 16);
         emit_mov_lo_imm8(e, 2, 1);
         emit_mov_lo_imm8(e, 2, 0);
+#endif
         emit_strb_smart(e, 0, 4, dst + i);
     }
     emit_strb_smart(e, 2, 4, OFS(carry));

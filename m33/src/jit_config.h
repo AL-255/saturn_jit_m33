@@ -59,6 +59,14 @@
 #define JIT_OPT_VECTOR_LDST 1
 #endif
 
+/* Compute the per-nibble carry-out via UBFX of bit 4 and wrap with
+ * AND #0xf instead of IT-block conditional subtraction. Same number
+ * of instructions per nibble as the IT approach but no IT, so M33's
+ * pipeline doesn't stall on the predicated execution window. */
+#ifndef JIT_OPT_FLAT_CARRY
+#define JIT_OPT_FLAT_CARRY 1
+#endif
+
 /* Move the saturn_ops += block_ops counter bump from JIT-emitted code
  * to the C dispatcher. Default OFF: measured neutral-to-slightly-
  * negative under QEMU (the dispatcher's added += costs as much as the
