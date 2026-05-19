@@ -9,8 +9,15 @@ ARCHFLAGS := -mcpu=cortex-m33 -mthumb -mfloat-abi=soft
 CFLAGS  := $(ARCHFLAGS) -O2 -g3 -ffunction-sections -fdata-sections \
            -Wall -Wextra -Wno-unused-parameter -std=c11 -nostartfiles \
            -fno-common -Isrc $(CFLAGS_EXTRA)
+JIT_CACHE_SIZE ?=
+ifeq ($(strip $(JIT_CACHE_SIZE)),)
+  LDFLAGS_CACHE :=
+else
+  LDFLAGS_CACHE := -Wl,--defsym=_jit_cache_size=$(JIT_CACHE_SIZE)
+endif
+
 LDFLAGS := $(ARCHFLAGS) -Tm33.ld -nostartfiles -Wl,--gc-sections \
-           -Wl,-Map=bench.map
+           -Wl,-Map=bench.map $(LDFLAGS_CACHE)
 
 SRCS := \
     src/startup.c \

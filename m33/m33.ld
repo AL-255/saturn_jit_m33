@@ -35,10 +35,15 @@ SECTIONS
     _ebss = .;
   } > RAM
 
-  /* JIT code cache lives in RAM, marked executable. */
+  /* JIT code cache lives in RAM, marked executable.
+   * Size is configurable via the linker symbol `_jit_cache_size`, which
+   * the Makefile passes through with --defsym (default 256K). This lets
+   * the cache-size sweep benchmark rebuild for each size without
+   * patching the linker script. */
+  PROVIDE(_jit_cache_size = 256 * 1024);
   .jitcache (NOLOAD) : ALIGN(64) {
     _jit_cache_start = .;
-    . = . + 256K;
+    . = . + _jit_cache_size;
     _jit_cache_end = .;
   } > RAM
 

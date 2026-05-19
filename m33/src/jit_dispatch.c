@@ -298,8 +298,14 @@ interp_status_t jit_run(uint64_t budget) {
 
 #if JIT_OPT_BLOCK_LINK && JIT_OPT_RTN_INLINE_CACHE
     /* Tracks the slot of the *previous* dyn_end fn() so we can fill its
-     * inline cache once we know which block its return PC dispatches to. */
-    int s_prev_dyn_slot = -1;
+     * inline cache once we know which block its return PC dispatches to.
+     * We also remember the slot's PC at the time we recorded it; if a
+     * cache_flush happened between the dyn_end run and the next dispatch
+     * the slot may now hold a different block, and our IC update would
+     * corrupt the new block's IC (which has its own ic_ret_pc / body
+     * already reset to cold). */
+    int      s_prev_dyn_slot = -1;
+    uint32_t s_prev_dyn_pc   = EMPTY_PC;
 #endif
 
     while (budget > 0 && status == INTERP_OK_BUDGET) {
@@ -380,7 +386,8 @@ interp_status_t jit_run(uint64_t budget) {
          * IC chains by entering at body_off (skipping prologue), so use
          * found_slot's body_off when available. */
         if (s_prev_dyn_slot >= 0 && found_slot >= 0
-            && s_links[found_slot].body_off != 0) {
+            && s_links[found_slot].body_off != 0
+            && s_table[s_prev_dyn_slot].pc == s_prev_dyn_pc) {
             uintptr_t body = (uintptr_t)(s_code_buf
                                          + (uint32_t)s_links[found_slot].body_off * 2)
                              | 1u;
@@ -388,6 +395,7 @@ interp_status_t jit_run(uint64_t budget) {
             s_links[s_prev_dyn_slot].ic_ret_body = body;
         }
         s_prev_dyn_slot = -1;
+        s_prev_dyn_pc   = EMPTY_PC;
 #endif
 
 #if JIT_OPT_BLOCK_LINK
@@ -412,6 +420,7 @@ interp_status_t jit_run(uint64_t budget) {
          * the body its return PC actually dispatches to. */
         if (found_slot >= 0 && s_links[found_slot].next_pc == DYN_NEXT_PC) {
             s_prev_dyn_slot = found_slot;
+            s_prev_dyn_pc   = s_table[found_slot].pc;
         }
 #endif
 #else
