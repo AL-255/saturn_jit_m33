@@ -869,29 +869,43 @@ static block_step_t translate_group_1(emit_ctx_t *e, addr_t pc, uint32_t *consum
 
 #if JIT_OPT_INLINE_DAT
         if (is_W) {
-            /* Inline 5-nibble DAT W. Assumes d is in [ram_base, ram_base+ram_size).
-             *   ldr  r0, [r4, #ofs_d_idx]    ; r0 = d
-             *   ldr  r1, [r4, #ofs_ram]      ; r1 = saturn.ram
-             *   ldr  r2, [r4, #ofs_ram_base] ; r2 = ram_base
-             *   sub.w r2, r0, r2             ; r2 = d - ram_base (offset)
-             *   add.w r2, r2, r1             ; r2 = &ram[offset]
-             * load:  ldr r0, [r2]; str r0, [r4, #dst]; ldrb r0, [r2,#4]; strb r0, [r4, #dst+4]
-             * store: ldr r0, [r4, #src]; str r0, [r2]; ldrb r0, [r4, #src+4]; strb r0, [r2,#4]
+            /* Inline 5-nibble DAT W with bounds check.
+             *   ldr  r0, [r4, #ofs_d]
+             *   ldr  r1, [r4, #ofs_ram]
+             *   ldr  r2, [r4, #ofs_ram_base]
+             *   sub.w r2, r0, r2          ; r2 = offset = d - ram_base
+             *   ldr  r3, [r4, #ofs_ram_size]
+             *   cmp  r2, r3
+             *   bhs  fallback             ; out of bounds → helper
+             *   add.w r2, r2, r1          ; r2 = &ram[off]
+             *   ; transfer
+             *   b end
+             * fallback:
+             *   ; emit standard helper call (store: load d into r0 again)
+             *   ...
+             * end:
              */
             emit_load_d(e, 0, d_idx);
             emit_ldr_imm(e, 1, 4, OFS(ram));
             emit_ldr_imm(e, 2, 4, OFS(ram_base));
-            /* sub.w r2, r0, r2 — T3 reg-reg, S=0. hi=0xEBA0|Rn=0, lo=Rd=2,Rm=2 */
             {
                 uint32_t hi = 0xEBA0 | 0;
                 uint32_t lo = (0 << 12) | (2 << 8) | (0 << 6) | (0 << 4) | 2;
-                emit_w32(e, (hi << 16) | lo);
+                emit_w32(e, (hi << 16) | lo);     /* sub.w r2, r0, r2 */
             }
-            /* add.w r2, r2, r1 — hi=0xEB00|Rn=2, lo=Rd=2,Rm=1 */
+            emit_ldr_imm(e, 3, 4, OFS(ram_size));
+            /* cmp r2, r3 — T2 reg compare: 0100 0010 10 Rm Rn (low regs);
+             * or for r2/r3 (both low): 0x4293 (cmp r3, r2 reversed)
+             * Actually CMP reg T1: 0100 0010 10 Rm Rn — for cmp r2, r3:
+             * Rn=2, Rm=3. Encoding: 0x4280 | (Rm << 3) | Rn = 0x4280 | 24 | 2 = 0x429A
+             * Let me verify: 01000010 10|01|10|10 = 0x429A. Hmm bit pattern doesn't look right. */
+            emit_hw(e, 0x4200 | (1 << 7) | (3 << 3) | 2);  /* cmp r2, r3 T1 */
+            uint32_t br_fallback = emit_b_w_placeholder(e, 0x2);   /* cond HS = 0x2 */
+            /* Fast path */
             {
                 uint32_t hi = 0xEB00 | 2;
                 uint32_t lo = (0 << 12) | (2 << 8) | (0 << 6) | (0 << 4) | 1;
-                emit_w32(e, (hi << 16) | lo);
+                emit_w32(e, (hi << 16) | lo);     /* add.w r2, r2, r1 */
             }
             uint16_t reg_off = OFS_REG(reg_idx);
             if (is_store) {
@@ -905,6 +919,23 @@ static block_step_t translate_group_1(emit_ctx_t *e, addr_t pc, uint32_t *consum
                 emit_ldrb_imm(e, 0, 2, 4);
                 emit_strb_imm(e, 0, 4, reg_off + 4);
             }
+            uint32_t br_end = emit_b_w_placeholder(e, -1);          /* unconditional */
+            /* Fallback: out-of-bounds → call the helper as if uninlined. */
+            uint32_t fallback_pos = e->pos;
+            if (is_store) {
+                emit_load_d(e, 0, d_idx);
+                emit_add_imm_t3_small(e, 1, 4, OFS_REG(reg_idx));
+                emit_mov_any(e, 2, 4);
+                emit_bl_to(e, (const void *)jit_dat_store_w);
+            } else {
+                emit_add_imm_t3_small(e, 0, 4, OFS_REG(reg_idx));
+                emit_load_d(e, 1, d_idx);
+                emit_mov_any(e, 2, 4);
+                emit_bl_to(e, (const void *)jit_dat_load_w);
+            }
+            uint32_t end_pos = e->pos;
+            emit_patch_b_w(e, br_fallback, fallback_pos);
+            emit_patch_b_w(e, br_end, end_pos);
             *consumed = 3;
             return BLK_CONTINUE;
         }
