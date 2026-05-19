@@ -89,7 +89,11 @@ RESULT_RE = re.compile(
     r"RESULT,(\w+),(\w+(?:-\w+)?),ops=(\d+),ticks=(\d+)"
 )
 TICKFREQ_RE = re.compile(r"tickfreq=(\d+)")
-WORKLOADS = ("arith", "memmix", "calltree", "countloop", "nqueens")
+ALL_WORKLOADS = ("arith", "memmix", "calltree", "countloop", "nqueens")
+# WORKLOADS is the subset summed into the plotted curves. Can be
+# overridden from the command line (--workload=name); defaults to the
+# full bench so prior reruns reproduce the existing plot.
+WORKLOADS = ALL_WORKLOADS
 TRIALS = 2
 
 
@@ -169,6 +173,25 @@ def sum_modes(runs, mode, freq):
 
 
 def main():
+    global WORKLOADS
+    # Allow `--workload=name` (or just `--workload name`) to narrow the
+    # plotted curves to one bench workload. Defaults to summing over all
+    # five workloads.
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a.startswith("--workload="):
+            WORKLOADS = (a.split("=", 1)[1],)
+        elif a == "--workload" and i + 1 < len(args):
+            WORKLOADS = (args[i + 1],)
+            i += 1
+        i += 1
+    for wl in WORKLOADS:
+        if wl not in ALL_WORKLOADS:
+            sys.exit(f"unknown workload: {wl}")
+    print(f"[sweep] workloads in plot: {', '.join(WORKLOADS)}", flush=True)
+
     if shutil.which(QEMU) is None:
         sys.exit(f"qemu not found: {QEMU}")
     if TASKPOLICY is None:
@@ -283,15 +306,24 @@ def plot(results, interp_min_ms):
     ax.minorticks_off()
     ax.set_xlabel("JIT code cache size (KiB, log2 scale)")
     ax.set_ylabel("Relative throughput, 1/t  (interpreter = 1.0)")
+    if WORKLOADS == ALL_WORKLOADS:
+        wl_desc = f"{len(ALL_WORKLOADS)} workloads"
+    elif len(WORKLOADS) == 1:
+        wl_desc = f"workload: {WORKLOADS[0]}"
+    else:
+        wl_desc = "workloads: " + ", ".join(WORKLOADS)
     ax.set_title(
         "Saturn JIT throughput vs. code-cache size, by configuration\n"
         "QEMU mps2-an505 on Apple-Silicon P-cores, host -O3, "
-        "four workloads × 200 000 Saturn ops (best of 2)"
+        f"{wl_desc} × 200 000 Saturn ops (best of 2)"
     )
     ax.grid(True, which="both", alpha=0.3)
     ax.legend(loc="center right", fontsize=9)
     fig.tight_layout()
-    png = Path(ROOT_DIR) / "bench_jit_cache_sweep.png"
+    suffix = ""
+    if WORKLOADS != ALL_WORKLOADS:
+        suffix = "_" + "_".join(WORKLOADS)
+    png = Path(ROOT_DIR) / f"bench_jit_cache_sweep{suffix}.png"
     fig.savefig(png, dpi=130)
     print(f"[sweep] wrote {png}", flush=True)
 

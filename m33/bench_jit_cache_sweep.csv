@@ -1,835 +1,1039 @@
 config,cache_kb,trial,workload,mode,ticks,ms
-default,0.5,0,arith,interp,19570000,19.5700
-default,0.5,0,arith,jit-on,2353538000,2353.5380
-default,0.5,0,memmix,interp,18941000,18.9410
-default,0.5,0,memmix,jit-on,2848000,2.8480
-default,0.5,0,calltree,interp,19632000,19.6320
-default,0.5,0,calltree,jit-on,4717286000,4717.2860
-default,0.5,0,countloop,interp,20271000,20.2710
-default,0.5,0,countloop,jit-on,476369000,476.3690
-default,0.5,1,arith,interp,19725000,19.7250
-default,0.5,1,arith,jit-on,2434403000,2434.4030
-default,0.5,1,memmix,interp,17528000,17.5280
-default,0.5,1,memmix,jit-on,2583000,2.5830
-default,0.5,1,calltree,interp,19481000,19.4810
-default,0.5,1,calltree,jit-on,4821649000,4821.6490
-default,0.5,1,countloop,interp,20514000,20.5140
-default,0.5,1,countloop,jit-on,476620000,476.6200
-default,1,0,arith,interp,21209000,21.2090
-default,1,0,arith,jit-on,1914000,1.9140
-default,1,0,memmix,interp,18983000,18.9830
-default,1,0,memmix,jit-on,2937000,2.9370
-default,1,0,memmix,jit-warm,2082000,2.0820
-default,1,0,calltree,interp,25968000,25.9680
-default,1,0,calltree,jit-on,2552000,2.5520
-default,1,0,calltree,jit-warm,1898000,1.8980
-default,1,0,countloop,interp,20966000,20.9660
-default,1,0,countloop,jit-on,9256000,9.2560
-default,1,1,arith,interp,20554000,20.5540
-default,1,1,arith,jit-on,1775000,1.7750
-default,1,1,memmix,interp,18534000,18.5340
-default,1,1,memmix,jit-on,2678000,2.6780
-default,1,1,memmix,jit-warm,2340000,2.3400
-default,1,1,calltree,interp,19218000,19.2180
-default,1,1,calltree,jit-on,2873000,2.8730
-default,1,1,calltree,jit-warm,2020000,2.0200
-default,1,1,countloop,interp,21416000,21.4160
-default,1,1,countloop,jit-on,9425000,9.4250
-default,2,0,arith,interp,19657000,19.6570
-default,2,0,arith,jit-on,1653000,1.6530
-default,2,0,arith,jit-warm,984000,0.9840
-default,2,0,memmix,interp,18023000,18.0230
-default,2,0,memmix,jit-on,2651000,2.6510
+default,0.5,0,arith,interp,21568000,21.5680
+default,0.5,0,arith,jit-on,2336328000,2336.3280
+default,0.5,0,memmix,interp,18573000,18.5730
+default,0.5,0,memmix,jit-on,2615000,2.6150
+default,0.5,0,calltree,interp,20104000,20.1040
+default,0.5,0,calltree,jit-on,4689570000,4689.5700
+default,0.5,0,countloop,interp,22353000,22.3530
+default,0.5,0,countloop,jit-on,473115000,473.1150
+default,0.5,0,nqueens,interp,18693000,18.6930
+default,0.5,0,nqueens,jit-on,1863552000,1863.5520
+default,0.5,1,arith,interp,22334000,22.3340
+default,0.5,1,arith,jit-on,2535638000,2535.6380
+default,0.5,1,memmix,interp,18346000,18.3460
+default,0.5,1,memmix,jit-on,2640000,2.6400
+default,0.5,1,calltree,interp,19805000,19.8050
+default,0.5,1,calltree,jit-on,4721835000,4721.8350
+default,0.5,1,countloop,interp,23192000,23.1920
+default,0.5,1,countloop,jit-on,477317000,477.3170
+default,0.5,1,nqueens,interp,18673000,18.6730
+default,0.5,1,nqueens,jit-on,1871190000,1871.1900
+default,1,0,arith,interp,22034000,22.0340
+default,1,0,arith,jit-on,1664000,1.6640
+default,1,0,memmix,interp,18100000,18.1000
+default,1,0,memmix,jit-on,2580000,2.5800
+default,1,0,memmix,jit-warm,2054000,2.0540
+default,1,0,calltree,interp,19383000,19.3830
+default,1,0,calltree,jit-on,2548000,2.5480
+default,1,0,calltree,jit-warm,1899000,1.8990
+default,1,0,countloop,interp,22206000,22.2060
+default,1,0,countloop,jit-on,9010000,9.0100
+default,1,0,nqueens,interp,18608000,18.6080
+default,1,0,nqueens,jit-on,325867000,325.8670
+default,1,1,arith,interp,22071000,22.0710
+default,1,1,arith,jit-on,1692000,1.6920
+default,1,1,memmix,interp,19651000,19.6510
+default,1,1,memmix,jit-on,2633000,2.6330
+default,1,1,memmix,jit-warm,2057000,2.0570
+default,1,1,calltree,interp,19756000,19.7560
+default,1,1,calltree,jit-on,2534000,2.5340
+default,1,1,calltree,jit-warm,1901000,1.9010
+default,1,1,countloop,interp,22993000,22.9930
+default,1,1,countloop,jit-on,9266000,9.2660
+default,1,1,nqueens,interp,18850000,18.8500
+default,1,1,nqueens,jit-on,329631000,329.6310
+default,2,0,arith,interp,22112000,22.1120
+default,2,0,arith,jit-on,1660000,1.6600
+default,2,0,arith,jit-warm,951000,0.9510
+default,2,0,memmix,interp,18641000,18.6410
+default,2,0,memmix,jit-on,2656000,2.6560
 default,2,0,memmix,jit-warm,2076000,2.0760
-default,2,0,calltree,interp,19285000,19.2850
-default,2,0,calltree,jit-on,2462000,2.4620
-default,2,0,calltree,jit-warm,1845000,1.8450
-default,2,0,countloop,interp,20290000,20.2900
-default,2,0,countloop,jit-on,1539000,1.5390
-default,2,0,countloop,jit-warm,1078000,1.0780
-default,2,1,arith,interp,20124000,20.1240
-default,2,1,arith,jit-on,1627000,1.6270
-default,2,1,arith,jit-warm,986000,0.9860
-default,2,1,memmix,interp,18090000,18.0900
-default,2,1,memmix,jit-on,2609000,2.6090
-default,2,1,memmix,jit-warm,2048000,2.0480
-default,2,1,calltree,interp,19998000,19.9980
-default,2,1,calltree,jit-on,2409000,2.4090
-default,2,1,calltree,jit-warm,1941000,1.9410
-default,2,1,countloop,interp,21318000,21.3180
-default,2,1,countloop,jit-on,1561000,1.5610
-default,2,1,countloop,jit-warm,1083000,1.0830
-default,4,0,arith,interp,19451000,19.4510
-default,4,0,arith,jit-on,1664000,1.6640
-default,4,0,arith,jit-warm,943000,0.9430
-default,4,0,memmix,interp,18194000,18.1940
-default,4,0,memmix,jit-on,2785000,2.7850
-default,4,0,memmix,jit-warm,2079000,2.0790
-default,4,0,calltree,interp,19448000,19.4480
-default,4,0,calltree,jit-on,2532000,2.5320
-default,4,0,calltree,jit-warm,1912000,1.9120
-default,4,0,countloop,interp,19769000,19.7690
-default,4,0,countloop,jit-on,1573000,1.5730
-default,4,0,countloop,jit-warm,1085000,1.0850
-default,4,1,arith,interp,20794000,20.7940
-default,4,1,arith,jit-on,1821000,1.8210
-default,4,1,arith,jit-warm,945000,0.9450
-default,4,1,memmix,interp,18453000,18.4530
-default,4,1,memmix,jit-on,3279000,3.2790
-default,4,1,memmix,jit-warm,2079000,2.0790
-default,4,1,calltree,interp,21007000,21.0070
-default,4,1,calltree,jit-on,2501000,2.5010
-default,4,1,calltree,jit-warm,2245000,2.2450
-default,4,1,countloop,interp,20415000,20.4150
-default,4,1,countloop,jit-on,1546000,1.5460
-default,4,1,countloop,jit-warm,1104000,1.1040
-default,8,0,arith,interp,19098000,19.0980
-default,8,0,arith,jit-on,1643000,1.6430
-default,8,0,arith,jit-warm,932000,0.9320
-default,8,0,memmix,interp,18512000,18.5120
-default,8,0,memmix,jit-on,2691000,2.6910
-default,8,0,memmix,jit-warm,1997000,1.9970
-default,8,0,calltree,interp,18901000,18.9010
-default,8,0,calltree,jit-on,2562000,2.5620
-default,8,0,calltree,jit-warm,1926000,1.9260
-default,8,0,countloop,interp,20392000,20.3920
-default,8,0,countloop,jit-on,1600000,1.6000
-default,8,0,countloop,jit-warm,1094000,1.0940
-default,8,1,arith,interp,19466000,19.4660
-default,8,1,arith,jit-on,1657000,1.6570
-default,8,1,arith,jit-warm,1088000,1.0880
-default,8,1,memmix,interp,18740000,18.7400
-default,8,1,memmix,jit-on,2695000,2.6950
-default,8,1,memmix,jit-warm,2055000,2.0550
-default,8,1,calltree,interp,19303000,19.3030
-default,8,1,calltree,jit-on,2549000,2.5490
-default,8,1,calltree,jit-warm,1934000,1.9340
-default,8,1,countloop,interp,20163000,20.1630
-default,8,1,countloop,jit-on,1534000,1.5340
-default,8,1,countloop,jit-warm,1083000,1.0830
-default,16,0,arith,interp,19648000,19.6480
-default,16,0,arith,jit-on,1725000,1.7250
-default,16,0,arith,jit-warm,939000,0.9390
-default,16,0,memmix,interp,18094000,18.0940
-default,16,0,memmix,jit-on,2625000,2.6250
-default,16,0,memmix,jit-warm,2067000,2.0670
-default,16,0,calltree,interp,19316000,19.3160
-default,16,0,calltree,jit-on,2460000,2.4600
-default,16,0,calltree,jit-warm,1944000,1.9440
-default,16,0,countloop,interp,20247000,20.2470
-default,16,0,countloop,jit-on,1574000,1.5740
-default,16,0,countloop,jit-warm,1069000,1.0690
-default,16,1,arith,interp,19335000,19.3350
-default,16,1,arith,jit-on,1653000,1.6530
-default,16,1,arith,jit-warm,970000,0.9700
-default,16,1,memmix,interp,17897000,17.8970
-default,16,1,memmix,jit-on,2598000,2.5980
-default,16,1,memmix,jit-warm,2042000,2.0420
-default,16,1,calltree,interp,19275000,19.2750
-default,16,1,calltree,jit-on,2466000,2.4660
-default,16,1,calltree,jit-warm,1910000,1.9100
-default,16,1,countloop,interp,19422000,19.4220
-default,16,1,countloop,jit-on,1501000,1.5010
-default,16,1,countloop,jit-warm,1074000,1.0740
-default,32,0,arith,interp,20032000,20.0320
-default,32,0,arith,jit-on,1673000,1.6730
-default,32,0,arith,jit-warm,967000,0.9670
-default,32,0,memmix,interp,18522000,18.5220
-default,32,0,memmix,jit-on,2741000,2.7410
-default,32,0,memmix,jit-warm,2112000,2.1120
-default,32,0,calltree,interp,20056000,20.0560
-default,32,0,calltree,jit-on,2705000,2.7050
-default,32,0,calltree,jit-warm,1954000,1.9540
-default,32,0,countloop,interp,20376000,20.3760
-default,32,0,countloop,jit-on,1563000,1.5630
-default,32,0,countloop,jit-warm,1087000,1.0870
-default,32,1,arith,interp,20199000,20.1990
-default,32,1,arith,jit-on,1662000,1.6620
-default,32,1,arith,jit-warm,965000,0.9650
-default,32,1,memmix,interp,18268000,18.2680
-default,32,1,memmix,jit-on,2564000,2.5640
-default,32,1,memmix,jit-warm,2094000,2.0940
-default,32,1,calltree,interp,19339000,19.3390
-default,32,1,calltree,jit-on,2518000,2.5180
-default,32,1,calltree,jit-warm,1931000,1.9310
-default,32,1,countloop,interp,19883000,19.8830
-default,32,1,countloop,jit-on,1552000,1.5520
-default,32,1,countloop,jit-warm,1094000,1.0940
-default,64,0,arith,interp,19902000,19.9020
-default,64,0,arith,jit-on,1712000,1.7120
-default,64,0,arith,jit-warm,951000,0.9510
-default,64,0,memmix,interp,18697000,18.6970
-default,64,0,memmix,jit-on,2691000,2.6910
-default,64,0,memmix,jit-warm,2236000,2.2360
-default,64,0,calltree,interp,20105000,20.1050
-default,64,0,calltree,jit-on,2557000,2.5570
-default,64,0,calltree,jit-warm,1877000,1.8770
-default,64,0,countloop,interp,20228000,20.2280
-default,64,0,countloop,jit-on,1583000,1.5830
-default,64,0,countloop,jit-warm,1217000,1.2170
-default,64,1,arith,interp,20563000,20.5630
-default,64,1,arith,jit-on,1859000,1.8590
-default,64,1,arith,jit-warm,958000,0.9580
-default,64,1,memmix,interp,18571000,18.5710
-default,64,1,memmix,jit-on,2667000,2.6670
-default,64,1,memmix,jit-warm,2061000,2.0610
-default,64,1,calltree,interp,19592000,19.5920
-default,64,1,calltree,jit-on,2509000,2.5090
-default,64,1,calltree,jit-warm,2176000,2.1760
-default,64,1,countloop,interp,29191000,29.1910
-default,64,1,countloop,jit-on,2035000,2.0350
-default,64,1,countloop,jit-warm,1170000,1.1700
-default,96,0,arith,interp,26192000,26.1920
-default,96,0,arith,jit-on,1781000,1.7810
-default,96,0,arith,jit-warm,1015000,1.0150
-default,96,0,memmix,interp,21725000,21.7250
-default,96,0,memmix,jit-on,7237000,7.2370
-default,96,0,memmix,jit-warm,8341000,8.3410
-default,96,0,calltree,interp,36303000,36.3030
-default,96,0,calltree,jit-on,3467000,3.4670
-default,96,0,calltree,jit-warm,2024000,2.0240
-default,96,0,countloop,interp,21629000,21.6290
-default,96,0,countloop,jit-on,1613000,1.6130
-default,96,0,countloop,jit-warm,1098000,1.0980
-default,96,1,arith,interp,20070000,20.0700
-default,96,1,arith,jit-on,1768000,1.7680
-default,96,1,arith,jit-warm,958000,0.9580
-default,96,1,memmix,interp,28431000,28.4310
-default,96,1,memmix,jit-on,2760000,2.7600
-default,96,1,memmix,jit-warm,2120000,2.1200
-default,96,1,calltree,interp,19830000,19.8300
-default,96,1,calltree,jit-on,2630000,2.6300
-default,96,1,calltree,jit-warm,1957000,1.9570
-default,96,1,countloop,interp,20232000,20.2320
-default,96,1,countloop,jit-on,1569000,1.5690
-default,96,1,countloop,jit-warm,1059000,1.0590
-default,128,0,arith,interp,20218000,20.2180
-default,128,0,arith,jit-on,1626000,1.6260
-default,128,0,arith,jit-warm,950000,0.9500
-default,128,0,memmix,interp,18513000,18.5130
-default,128,0,memmix,jit-on,2670000,2.6700
-default,128,0,memmix,jit-warm,2072000,2.0720
-default,128,0,calltree,interp,19757000,19.7570
-default,128,0,calltree,jit-on,2457000,2.4570
-default,128,0,calltree,jit-warm,1912000,1.9120
-default,128,0,countloop,interp,20621000,20.6210
-default,128,0,countloop,jit-on,1528000,1.5280
-default,128,0,countloop,jit-warm,1097000,1.0970
-default,128,1,arith,interp,19363000,19.3630
-default,128,1,arith,jit-on,1656000,1.6560
-default,128,1,arith,jit-warm,938000,0.9380
-default,128,1,memmix,interp,17527000,17.5270
-default,128,1,memmix,jit-on,2649000,2.6490
-default,128,1,memmix,jit-warm,2130000,2.1300
-default,128,1,calltree,interp,19271000,19.2710
-default,128,1,calltree,jit-on,2493000,2.4930
-default,128,1,calltree,jit-warm,1883000,1.8830
-default,128,1,countloop,interp,19995000,19.9950
-default,128,1,countloop,jit-on,1541000,1.5410
-default,128,1,countloop,jit-warm,1079000,1.0790
-default,192,0,arith,interp,18548000,18.5480
-default,192,0,arith,jit-on,1606000,1.6060
-default,192,0,arith,jit-warm,959000,0.9590
-default,192,0,memmix,interp,17614000,17.6140
-default,192,0,memmix,jit-on,2633000,2.6330
-default,192,0,memmix,jit-warm,2050000,2.0500
-default,192,0,calltree,interp,19153000,19.1530
-default,192,0,calltree,jit-on,2485000,2.4850
-default,192,0,calltree,jit-warm,1972000,1.9720
-default,192,0,countloop,interp,19736000,19.7360
-default,192,0,countloop,jit-on,1522000,1.5220
-default,192,0,countloop,jit-warm,1080000,1.0800
-default,192,1,arith,interp,19419000,19.4190
-default,192,1,arith,jit-on,1641000,1.6410
-default,192,1,arith,jit-warm,940000,0.9400
-default,192,1,memmix,interp,17799000,17.7990
-default,192,1,memmix,jit-on,2631000,2.6310
-default,192,1,memmix,jit-warm,2034000,2.0340
-default,192,1,calltree,interp,19259000,19.2590
-default,192,1,calltree,jit-on,2480000,2.4800
-default,192,1,calltree,jit-warm,1929000,1.9290
-default,192,1,countloop,interp,20530000,20.5300
+default,2,0,calltree,interp,19682000,19.6820
+default,2,0,calltree,jit-on,2500000,2.5000
+default,2,0,calltree,jit-warm,1958000,1.9580
+default,2,0,countloop,interp,22916000,22.9160
+default,2,0,countloop,jit-on,1538000,1.5380
+default,2,0,countloop,jit-warm,1083000,1.0830
+default,2,0,nqueens,interp,18705000,18.7050
+default,2,0,nqueens,jit-on,3616000,3.6160
+default,2,0,nqueens,jit-warm,2773000,2.7730
+default,2,1,arith,interp,22171000,22.1710
+default,2,1,arith,jit-on,1689000,1.6890
+default,2,1,arith,jit-warm,1011000,1.0110
+default,2,1,memmix,interp,20195000,20.1950
+default,2,1,memmix,jit-on,2629000,2.6290
+default,2,1,memmix,jit-warm,2036000,2.0360
+default,2,1,calltree,interp,19885000,19.8850
+default,2,1,calltree,jit-on,2549000,2.5490
+default,2,1,calltree,jit-warm,1931000,1.9310
+default,2,1,countloop,interp,22942000,22.9420
+default,2,1,countloop,jit-on,1529000,1.5290
+default,2,1,countloop,jit-warm,1084000,1.0840
+default,2,1,nqueens,interp,18531000,18.5310
+default,2,1,nqueens,jit-on,3494000,3.4940
+default,2,1,nqueens,jit-warm,2662000,2.6620
+default,4,0,arith,interp,22408000,22.4080
+default,4,0,arith,jit-on,1667000,1.6670
+default,4,0,arith,jit-warm,948000,0.9480
+default,4,0,memmix,interp,19618000,19.6180
+default,4,0,memmix,jit-on,2601000,2.6010
+default,4,0,memmix,jit-warm,2093000,2.0930
+default,4,0,calltree,interp,20292000,20.2920
+default,4,0,calltree,jit-on,2565000,2.5650
+default,4,0,calltree,jit-warm,1915000,1.9150
+default,4,0,countloop,interp,22878000,22.8780
+default,4,0,countloop,jit-on,1500000,1.5000
+default,4,0,countloop,jit-warm,1087000,1.0870
+default,4,0,nqueens,interp,19510000,19.5100
+default,4,0,nqueens,jit-on,3544000,3.5440
+default,4,0,nqueens,jit-warm,2720000,2.7200
+default,4,1,arith,interp,22207000,22.2070
+default,4,1,arith,jit-on,1712000,1.7120
+default,4,1,arith,jit-warm,962000,0.9620
+default,4,1,memmix,interp,19837000,19.8370
+default,4,1,memmix,jit-on,2635000,2.6350
+default,4,1,memmix,jit-warm,2062000,2.0620
+default,4,1,calltree,interp,20289000,20.2890
+default,4,1,calltree,jit-on,2559000,2.5590
+default,4,1,calltree,jit-warm,1944000,1.9440
+default,4,1,countloop,interp,23314000,23.3140
+default,4,1,countloop,jit-on,1497000,1.4970
+default,4,1,countloop,jit-warm,1072000,1.0720
+default,4,1,nqueens,interp,18951000,18.9510
+default,4,1,nqueens,jit-on,3607000,3.6070
+default,4,1,nqueens,jit-warm,2756000,2.7560
+default,8,0,arith,interp,21989000,21.9890
+default,8,0,arith,jit-on,1649000,1.6490
+default,8,0,arith,jit-warm,949000,0.9490
+default,8,0,memmix,interp,19502000,19.5020
+default,8,0,memmix,jit-on,2648000,2.6480
+default,8,0,memmix,jit-warm,2070000,2.0700
+default,8,0,calltree,interp,19694000,19.6940
+default,8,0,calltree,jit-on,2538000,2.5380
+default,8,0,calltree,jit-warm,1941000,1.9410
+default,8,0,countloop,interp,22666000,22.6660
+default,8,0,countloop,jit-on,1517000,1.5170
+default,8,0,countloop,jit-warm,1100000,1.1000
+default,8,0,nqueens,interp,18772000,18.7720
+default,8,0,nqueens,jit-on,3559000,3.5590
+default,8,0,nqueens,jit-warm,2697000,2.6970
+default,8,1,arith,interp,21895000,21.8950
+default,8,1,arith,jit-on,1676000,1.6760
+default,8,1,arith,jit-warm,977000,0.9770
+default,8,1,memmix,interp,18916000,18.9160
+default,8,1,memmix,jit-on,2615000,2.6150
+default,8,1,memmix,jit-warm,2053000,2.0530
+default,8,1,calltree,interp,19264000,19.2640
+default,8,1,calltree,jit-on,2526000,2.5260
+default,8,1,calltree,jit-warm,1912000,1.9120
+default,8,1,countloop,interp,22340000,22.3400
+default,8,1,countloop,jit-on,1486000,1.4860
+default,8,1,countloop,jit-warm,1116000,1.1160
+default,8,1,nqueens,interp,18410000,18.4100
+default,8,1,nqueens,jit-on,3492000,3.4920
+default,8,1,nqueens,jit-warm,2676000,2.6760
+default,16,0,arith,interp,22015000,22.0150
+default,16,0,arith,jit-on,1645000,1.6450
+default,16,0,arith,jit-warm,986000,0.9860
+default,16,0,memmix,interp,19467000,19.4670
+default,16,0,memmix,jit-on,2640000,2.6400
+default,16,0,memmix,jit-warm,2052000,2.0520
+default,16,0,calltree,interp,20051000,20.0510
+default,16,0,calltree,jit-on,2519000,2.5190
+default,16,0,calltree,jit-warm,1915000,1.9150
+default,16,0,countloop,interp,22858000,22.8580
+default,16,0,countloop,jit-on,1559000,1.5590
+default,16,0,countloop,jit-warm,1093000,1.0930
+default,16,0,nqueens,interp,18703000,18.7030
+default,16,0,nqueens,jit-on,3561000,3.5610
+default,16,0,nqueens,jit-warm,2721000,2.7210
+default,16,1,arith,interp,22710000,22.7100
+default,16,1,arith,jit-on,1680000,1.6800
+default,16,1,arith,jit-warm,959000,0.9590
+default,16,1,memmix,interp,19404000,19.4040
+default,16,1,memmix,jit-on,2604000,2.6040
+default,16,1,memmix,jit-warm,2073000,2.0730
+default,16,1,calltree,interp,20156000,20.1560
+default,16,1,calltree,jit-on,2528000,2.5280
+default,16,1,calltree,jit-warm,1951000,1.9510
+default,16,1,countloop,interp,23754000,23.7540
+default,16,1,countloop,jit-on,1508000,1.5080
+default,16,1,countloop,jit-warm,1083000,1.0830
+default,16,1,nqueens,interp,18765000,18.7650
+default,16,1,nqueens,jit-on,3553000,3.5530
+default,16,1,nqueens,jit-warm,2767000,2.7670
+default,32,0,arith,interp,21513000,21.5130
+default,32,0,arith,jit-on,1615000,1.6150
+default,32,0,arith,jit-warm,973000,0.9730
+default,32,0,memmix,interp,18603000,18.6030
+default,32,0,memmix,jit-on,2714000,2.7140
+default,32,0,memmix,jit-warm,2056000,2.0560
+default,32,0,calltree,interp,20074000,20.0740
+default,32,0,calltree,jit-on,2607000,2.6070
+default,32,0,calltree,jit-warm,1987000,1.9870
+default,32,0,countloop,interp,22229000,22.2290
+default,32,0,countloop,jit-on,1541000,1.5410
+default,32,0,countloop,jit-warm,1075000,1.0750
+default,32,0,nqueens,interp,18582000,18.5820
+default,32,0,nqueens,jit-on,3546000,3.5460
+default,32,0,nqueens,jit-warm,2684000,2.6840
+default,32,1,arith,interp,22357000,22.3570
+default,32,1,arith,jit-on,1699000,1.6990
+default,32,1,arith,jit-warm,992000,0.9920
+default,32,1,memmix,interp,18571000,18.5710
+default,32,1,memmix,jit-on,2641000,2.6410
+default,32,1,memmix,jit-warm,2055000,2.0550
+default,32,1,calltree,interp,19561000,19.5610
+default,32,1,calltree,jit-on,2571000,2.5710
+default,32,1,calltree,jit-warm,1908000,1.9080
+default,32,1,countloop,interp,21694000,21.6940
+default,32,1,countloop,jit-on,1502000,1.5020
+default,32,1,countloop,jit-warm,1071000,1.0710
+default,32,1,nqueens,interp,19268000,19.2680
+default,32,1,nqueens,jit-on,3591000,3.5910
+default,32,1,nqueens,jit-warm,2706000,2.7060
+default,64,0,arith,interp,22425000,22.4250
+default,64,0,arith,jit-on,1658000,1.6580
+default,64,0,arith,jit-warm,958000,0.9580
+default,64,0,memmix,interp,19577000,19.5770
+default,64,0,memmix,jit-on,2630000,2.6300
+default,64,0,memmix,jit-warm,2102000,2.1020
+default,64,0,calltree,interp,20106000,20.1060
+default,64,0,calltree,jit-on,2964000,2.9640
+default,64,0,calltree,jit-warm,2328000,2.3280
+default,64,0,countloop,interp,24389000,24.3890
+default,64,0,countloop,jit-on,1556000,1.5560
+default,64,0,countloop,jit-warm,1079000,1.0790
+default,64,0,nqueens,interp,19146000,19.1460
+default,64,0,nqueens,jit-on,3572000,3.5720
+default,64,0,nqueens,jit-warm,2785000,2.7850
+default,64,1,arith,interp,22176000,22.1760
+default,64,1,arith,jit-on,1658000,1.6580
+default,64,1,arith,jit-warm,944000,0.9440
+default,64,1,memmix,interp,18270000,18.2700
+default,64,1,memmix,jit-on,2639000,2.6390
+default,64,1,memmix,jit-warm,2049000,2.0490
+default,64,1,calltree,interp,19305000,19.3050
+default,64,1,calltree,jit-on,2503000,2.5030
+default,64,1,calltree,jit-warm,1920000,1.9200
+default,64,1,countloop,interp,22091000,22.0910
+default,64,1,countloop,jit-on,1553000,1.5530
+default,64,1,countloop,jit-warm,1090000,1.0900
+default,64,1,nqueens,interp,18493000,18.4930
+default,64,1,nqueens,jit-on,3474000,3.4740
+default,64,1,nqueens,jit-warm,2661000,2.6610
+default,96,0,arith,interp,22027000,22.0270
+default,96,0,arith,jit-on,1662000,1.6620
+default,96,0,arith,jit-warm,957000,0.9570
+default,96,0,memmix,interp,19388000,19.3880
+default,96,0,memmix,jit-on,2607000,2.6070
+default,96,0,memmix,jit-warm,2039000,2.0390
+default,96,0,calltree,interp,19538000,19.5380
+default,96,0,calltree,jit-on,2513000,2.5130
+default,96,0,calltree,jit-warm,1921000,1.9210
+default,96,0,countloop,interp,22244000,22.2440
+default,96,0,countloop,jit-on,1501000,1.5010
+default,96,0,countloop,jit-warm,1073000,1.0730
+default,96,0,nqueens,interp,18502000,18.5020
+default,96,0,nqueens,jit-on,3448000,3.4480
+default,96,0,nqueens,jit-warm,2614000,2.6140
+default,96,1,arith,interp,21824000,21.8240
+default,96,1,arith,jit-on,1641000,1.6410
+default,96,1,arith,jit-warm,952000,0.9520
+default,96,1,memmix,interp,18559000,18.5590
+default,96,1,memmix,jit-on,2618000,2.6180
+default,96,1,memmix,jit-warm,2041000,2.0410
+default,96,1,calltree,interp,19349000,19.3490
+default,96,1,calltree,jit-on,2560000,2.5600
+default,96,1,calltree,jit-warm,1897000,1.8970
+default,96,1,countloop,interp,22042000,22.0420
+default,96,1,countloop,jit-on,1512000,1.5120
+default,96,1,countloop,jit-warm,1071000,1.0710
+default,96,1,nqueens,interp,18175000,18.1750
+default,96,1,nqueens,jit-on,3411000,3.4110
+default,96,1,nqueens,jit-warm,2624000,2.6240
+default,128,0,arith,interp,21434000,21.4340
+default,128,0,arith,jit-on,1632000,1.6320
+default,128,0,arith,jit-warm,969000,0.9690
+default,128,0,memmix,interp,18286000,18.2860
+default,128,0,memmix,jit-on,2638000,2.6380
+default,128,0,memmix,jit-warm,2040000,2.0400
+default,128,0,calltree,interp,19042000,19.0420
+default,128,0,calltree,jit-on,2578000,2.5780
+default,128,0,calltree,jit-warm,1924000,1.9240
+default,128,0,countloop,interp,22156000,22.1560
+default,128,0,countloop,jit-on,1519000,1.5190
+default,128,0,countloop,jit-warm,1058000,1.0580
+default,128,0,nqueens,interp,18537000,18.5370
+default,128,0,nqueens,jit-on,3533000,3.5330
+default,128,0,nqueens,jit-warm,2643000,2.6430
+default,128,1,arith,interp,21925000,21.9250
+default,128,1,arith,jit-on,1665000,1.6650
+default,128,1,arith,jit-warm,957000,0.9570
+default,128,1,memmix,interp,19804000,19.8040
+default,128,1,memmix,jit-on,2654000,2.6540
+default,128,1,memmix,jit-warm,2057000,2.0570
+default,128,1,calltree,interp,19745000,19.7450
+default,128,1,calltree,jit-on,2535000,2.5350
+default,128,1,calltree,jit-warm,1941000,1.9410
+default,128,1,countloop,interp,22291000,22.2910
+default,128,1,countloop,jit-on,1507000,1.5070
+default,128,1,countloop,jit-warm,1072000,1.0720
+default,128,1,nqueens,interp,18709000,18.7090
+default,128,1,nqueens,jit-on,3528000,3.5280
+default,128,1,nqueens,jit-warm,2668000,2.6680
+default,192,0,arith,interp,21613000,21.6130
+default,192,0,arith,jit-on,1637000,1.6370
+default,192,0,arith,jit-warm,948000,0.9480
+default,192,0,memmix,interp,18233000,18.2330
+default,192,0,memmix,jit-on,2690000,2.6900
+default,192,0,memmix,jit-warm,2067000,2.0670
+default,192,0,calltree,interp,19354000,19.3540
+default,192,0,calltree,jit-on,2528000,2.5280
+default,192,0,calltree,jit-warm,1929000,1.9290
+default,192,0,countloop,interp,22054000,22.0540
+default,192,0,countloop,jit-on,1549000,1.5490
+default,192,0,countloop,jit-warm,1074000,1.0740
+default,192,0,nqueens,interp,18314000,18.3140
+default,192,0,nqueens,jit-on,3489000,3.4890
+default,192,0,nqueens,jit-warm,2683000,2.6830
+default,192,1,arith,interp,27447000,27.4470
+default,192,1,arith,jit-on,1675000,1.6750
+default,192,1,arith,jit-warm,987000,0.9870
+default,192,1,memmix,interp,20044000,20.0440
+default,192,1,memmix,jit-on,2668000,2.6680
+default,192,1,memmix,jit-warm,2075000,2.0750
+default,192,1,calltree,interp,20804000,20.8040
+default,192,1,calltree,jit-on,2573000,2.5730
+default,192,1,calltree,jit-warm,1956000,1.9560
+default,192,1,countloop,interp,23403000,23.4030
 default,192,1,countloop,jit-on,1523000,1.5230
-default,192,1,countloop,jit-warm,1072000,1.0720
-default,256,0,arith,interp,19959000,19.9590
-default,256,0,arith,jit-on,1703000,1.7030
-default,256,0,arith,jit-warm,950000,0.9500
-default,256,0,memmix,interp,17885000,17.8850
-default,256,0,memmix,jit-on,2634000,2.6340
-default,256,0,memmix,jit-warm,2058000,2.0580
-default,256,0,calltree,interp,19473000,19.4730
-default,256,0,calltree,jit-on,2472000,2.4720
-default,256,0,calltree,jit-warm,1896000,1.8960
-default,256,0,countloop,interp,19896000,19.8960
-default,256,0,countloop,jit-on,1593000,1.5930
-default,256,0,countloop,jit-warm,1089000,1.0890
-default,256,1,arith,interp,19578000,19.5780
-default,256,1,arith,jit-on,1651000,1.6510
-default,256,1,arith,jit-warm,949000,0.9490
-default,256,1,memmix,interp,17976000,17.9760
-default,256,1,memmix,jit-on,2630000,2.6300
-default,256,1,memmix,jit-warm,2039000,2.0390
-default,256,1,calltree,interp,19164000,19.1640
-default,256,1,calltree,jit-on,2425000,2.4250
-default,256,1,calltree,jit-warm,1984000,1.9840
-default,256,1,countloop,interp,19723000,19.7230
-default,256,1,countloop,jit-on,1506000,1.5060
-default,256,1,countloop,jit-warm,1069000,1.0690
-no block-linking,0.5,0,arith,interp,20944000,20.9440
-no block-linking,0.5,0,arith,jit-on,3831834000,3831.8340
-no block-linking,0.5,0,memmix,interp,18706000,18.7060
-no block-linking,0.5,0,memmix,jit-on,4877000,4.8770
-no block-linking,0.5,0,calltree,interp,19437000,19.4370
-no block-linking,0.5,0,calltree,jit-on,5485000,5.4850
-no block-linking,0.5,0,countloop,interp,20826000,20.8260
-no block-linking,0.5,0,countloop,jit-on,540350000,540.3500
-no block-linking,0.5,1,arith,interp,20879000,20.8790
-no block-linking,0.5,1,arith,jit-on,2915139000,2915.1390
-no block-linking,0.5,1,memmix,interp,99902000,99.9020
-no block-linking,0.5,1,memmix,jit-on,40809000,40.8090
-no block-linking,0.5,1,calltree,interp,293931000,293.9310
-no block-linking,0.5,1,calltree,jit-on,23021000,23.0210
-no block-linking,0.5,1,countloop,interp,110601000,110.6010
-no block-linking,0.5,1,countloop,jit-on,778569000,778.5690
-no block-linking,1,0,arith,interp,23283000,23.2830
-no block-linking,1,0,arith,jit-on,2887000,2.8870
-no block-linking,1,0,memmix,interp,22748000,22.7480
-no block-linking,1,0,memmix,jit-on,4974000,4.9740
-no block-linking,1,0,memmix,jit-warm,5232000,5.2320
-no block-linking,1,0,calltree,interp,35391000,35.3910
-no block-linking,1,0,calltree,jit-on,6557000,6.5570
-no block-linking,1,0,calltree,jit-warm,6004000,6.0040
-no block-linking,1,0,countloop,interp,25691000,25.6910
-no block-linking,1,0,countloop,jit-on,6142000,6.1420
-no block-linking,1,0,countloop,jit-warm,5480000,5.4800
-no block-linking,1,1,arith,interp,24458000,24.4580
-no block-linking,1,1,arith,jit-on,5289000,5.2890
-no block-linking,1,1,memmix,interp,22219000,22.2190
-no block-linking,1,1,memmix,jit-on,4685000,4.6850
-no block-linking,1,1,memmix,jit-warm,4037000,4.0370
-no block-linking,1,1,calltree,interp,21698000,21.6980
-no block-linking,1,1,calltree,jit-on,6023000,6.0230
-no block-linking,1,1,calltree,jit-warm,5492000,5.4920
-no block-linking,1,1,countloop,interp,23073000,23.0730
-no block-linking,1,1,countloop,jit-on,5267000,5.2670
-no block-linking,1,1,countloop,jit-warm,4830000,4.8300
-no block-linking,2,0,arith,interp,19876000,19.8760
-no block-linking,2,0,arith,jit-on,2019000,2.0190
-no block-linking,2,0,arith,jit-warm,1576000,1.5760
-no block-linking,2,0,memmix,interp,18075000,18.0750
-no block-linking,2,0,memmix,jit-on,4078000,4.0780
-no block-linking,2,0,memmix,jit-warm,3516000,3.5160
-no block-linking,2,0,calltree,interp,18757000,18.7570
-no block-linking,2,0,calltree,jit-on,5166000,5.1660
-no block-linking,2,0,calltree,jit-warm,4754000,4.7540
-no block-linking,2,0,countloop,interp,20405000,20.4050
-no block-linking,2,0,countloop,jit-on,4818000,4.8180
-no block-linking,2,0,countloop,jit-warm,4427000,4.4270
-no block-linking,2,1,arith,interp,19924000,19.9240
-no block-linking,2,1,arith,jit-on,2022000,2.0220
-no block-linking,2,1,arith,jit-warm,1587000,1.5870
-no block-linking,2,1,memmix,interp,21243000,21.2430
-no block-linking,2,1,memmix,jit-on,7855000,7.8550
-no block-linking,2,1,memmix,jit-warm,3526000,3.5260
-no block-linking,2,1,calltree,interp,18900000,18.9000
-no block-linking,2,1,calltree,jit-on,5236000,5.2360
-no block-linking,2,1,calltree,jit-warm,4732000,4.7320
-no block-linking,2,1,countloop,interp,19764000,19.7640
-no block-linking,2,1,countloop,jit-on,4732000,4.7320
-no block-linking,2,1,countloop,jit-warm,4353000,4.3530
-no block-linking,4,0,arith,interp,20340000,20.3400
-no block-linking,4,0,arith,jit-on,2071000,2.0710
-no block-linking,4,0,arith,jit-warm,1720000,1.7200
-no block-linking,4,0,memmix,interp,18028000,18.0280
-no block-linking,4,0,memmix,jit-on,4064000,4.0640
-no block-linking,4,0,memmix,jit-warm,3547000,3.5470
-no block-linking,4,0,calltree,interp,19907000,19.9070
-no block-linking,4,0,calltree,jit-on,5304000,5.3040
-no block-linking,4,0,calltree,jit-warm,4707000,4.7070
-no block-linking,4,0,countloop,interp,20385000,20.3850
-no block-linking,4,0,countloop,jit-on,5066000,5.0660
-no block-linking,4,0,countloop,jit-warm,4205000,4.2050
-no block-linking,4,1,arith,interp,19839000,19.8390
-no block-linking,4,1,arith,jit-on,2038000,2.0380
-no block-linking,4,1,arith,jit-warm,1534000,1.5340
-no block-linking,4,1,memmix,interp,18702000,18.7020
-no block-linking,4,1,memmix,jit-on,4062000,4.0620
-no block-linking,4,1,memmix,jit-warm,3599000,3.5990
-no block-linking,4,1,calltree,interp,18715000,18.7150
-no block-linking,4,1,calltree,jit-on,4986000,4.9860
-no block-linking,4,1,calltree,jit-warm,4635000,4.6350
-no block-linking,4,1,countloop,interp,20175000,20.1750
-no block-linking,4,1,countloop,jit-on,4739000,4.7390
-no block-linking,4,1,countloop,jit-warm,4193000,4.1930
-no block-linking,8,0,arith,interp,19705000,19.7050
-no block-linking,8,0,arith,jit-on,1997000,1.9970
-no block-linking,8,0,arith,jit-warm,1593000,1.5930
-no block-linking,8,0,memmix,interp,18035000,18.0350
-no block-linking,8,0,memmix,jit-on,4021000,4.0210
-no block-linking,8,0,memmix,jit-warm,3505000,3.5050
-no block-linking,8,0,calltree,interp,18510000,18.5100
-no block-linking,8,0,calltree,jit-on,5198000,5.1980
-no block-linking,8,0,calltree,jit-warm,4751000,4.7510
-no block-linking,8,0,countloop,interp,20506000,20.5060
-no block-linking,8,0,countloop,jit-on,5117000,5.1170
-no block-linking,8,0,countloop,jit-warm,4868000,4.8680
-no block-linking,8,1,arith,interp,20514000,20.5140
-no block-linking,8,1,arith,jit-on,2693000,2.6930
-no block-linking,8,1,arith,jit-warm,1665000,1.6650
-no block-linking,8,1,memmix,interp,18366000,18.3660
-no block-linking,8,1,memmix,jit-on,4034000,4.0340
-no block-linking,8,1,memmix,jit-warm,3765000,3.7650
-no block-linking,8,1,calltree,interp,19036000,19.0360
-no block-linking,8,1,calltree,jit-on,5575000,5.5750
-no block-linking,8,1,calltree,jit-warm,4665000,4.6650
-no block-linking,8,1,countloop,interp,20610000,20.6100
-no block-linking,8,1,countloop,jit-on,5115000,5.1150
-no block-linking,8,1,countloop,jit-warm,4370000,4.3700
-no block-linking,16,0,arith,interp,27071000,27.0710
-no block-linking,16,0,arith,jit-on,2196000,2.1960
-no block-linking,16,0,arith,jit-warm,2328000,2.3280
-no block-linking,16,0,memmix,interp,29428000,29.4280
-no block-linking,16,0,memmix,jit-on,5650000,5.6500
-no block-linking,16,0,memmix,jit-warm,6716000,6.7160
-no block-linking,16,0,calltree,interp,74177000,74.1770
-no block-linking,16,0,calltree,jit-on,9449000,9.4490
-no block-linking,16,0,calltree,jit-warm,4907000,4.9070
-no block-linking,16,0,countloop,interp,21236000,21.2360
-no block-linking,16,0,countloop,jit-on,4739000,4.7390
-no block-linking,16,0,countloop,jit-warm,4439000,4.4390
-no block-linking,16,1,arith,interp,21467000,21.4670
-no block-linking,16,1,arith,jit-on,2117000,2.1170
-no block-linking,16,1,arith,jit-warm,1744000,1.7440
-no block-linking,16,1,memmix,interp,19055000,19.0550
-no block-linking,16,1,memmix,jit-on,4530000,4.5300
-no block-linking,16,1,memmix,jit-warm,4409000,4.4090
-no block-linking,16,1,calltree,interp,22196000,22.1960
-no block-linking,16,1,calltree,jit-on,5750000,5.7500
-no block-linking,16,1,calltree,jit-warm,5695000,5.6950
-no block-linking,16,1,countloop,interp,22933000,22.9330
-no block-linking,16,1,countloop,jit-on,5167000,5.1670
-no block-linking,16,1,countloop,jit-warm,4956000,4.9560
-no block-linking,32,0,arith,interp,20137000,20.1370
-no block-linking,32,0,arith,jit-on,2056000,2.0560
-no block-linking,32,0,arith,jit-warm,1544000,1.5440
-no block-linking,32,0,memmix,interp,18296000,18.2960
-no block-linking,32,0,memmix,jit-on,4046000,4.0460
-no block-linking,32,0,memmix,jit-warm,3604000,3.6040
-no block-linking,32,0,calltree,interp,18253000,18.2530
-no block-linking,32,0,calltree,jit-on,5860000,5.8600
-no block-linking,32,0,calltree,jit-warm,8365000,8.3650
-no block-linking,32,0,countloop,interp,22560000,22.5600
-no block-linking,32,0,countloop,jit-on,4859000,4.8590
-no block-linking,32,0,countloop,jit-warm,6288000,6.2880
-no block-linking,32,1,arith,interp,22259000,22.2590
-no block-linking,32,1,arith,jit-on,2164000,2.1640
-no block-linking,32,1,arith,jit-warm,1654000,1.6540
-no block-linking,32,1,memmix,interp,19120000,19.1200
-no block-linking,32,1,memmix,jit-on,4280000,4.2800
-no block-linking,32,1,memmix,jit-warm,5410000,5.4100
-no block-linking,32,1,calltree,interp,19942000,19.9420
-no block-linking,32,1,calltree,jit-on,5447000,5.4470
-no block-linking,32,1,calltree,jit-warm,4977000,4.9770
-no block-linking,32,1,countloop,interp,21496000,21.4960
-no block-linking,32,1,countloop,jit-on,5069000,5.0690
-no block-linking,32,1,countloop,jit-warm,4557000,4.5570
-no block-linking,64,0,arith,interp,20153000,20.1530
-no block-linking,64,0,arith,jit-on,2049000,2.0490
-no block-linking,64,0,arith,jit-warm,1571000,1.5710
-no block-linking,64,0,memmix,interp,23689000,23.6890
-no block-linking,64,0,memmix,jit-on,4543000,4.5430
-no block-linking,64,0,memmix,jit-warm,3898000,3.8980
-no block-linking,64,0,calltree,interp,20451000,20.4510
-no block-linking,64,0,calltree,jit-on,5762000,5.7620
-no block-linking,64,0,calltree,jit-warm,5359000,5.3590
-no block-linking,64,0,countloop,interp,21175000,21.1750
-no block-linking,64,0,countloop,jit-on,5257000,5.2570
-no block-linking,64,0,countloop,jit-warm,4822000,4.8220
-no block-linking,64,1,arith,interp,22596000,22.5960
-no block-linking,64,1,arith,jit-on,2254000,2.2540
-no block-linking,64,1,arith,jit-warm,1736000,1.7360
-no block-linking,64,1,memmix,interp,19625000,19.6250
-no block-linking,64,1,memmix,jit-on,4328000,4.3280
-no block-linking,64,1,memmix,jit-warm,3742000,3.7420
-no block-linking,64,1,calltree,interp,20036000,20.0360
-no block-linking,64,1,calltree,jit-on,5471000,5.4710
-no block-linking,64,1,calltree,jit-warm,4974000,4.9740
-no block-linking,64,1,countloop,interp,21621000,21.6210
-no block-linking,64,1,countloop,jit-on,5226000,5.2260
-no block-linking,64,1,countloop,jit-warm,4670000,4.6700
-no block-linking,96,0,arith,interp,19959000,19.9590
-no block-linking,96,0,arith,jit-on,2042000,2.0420
-no block-linking,96,0,arith,jit-warm,1547000,1.5470
-no block-linking,96,0,memmix,interp,17765000,17.7650
-no block-linking,96,0,memmix,jit-on,4103000,4.1030
-no block-linking,96,0,memmix,jit-warm,3525000,3.5250
-no block-linking,96,0,calltree,interp,18828000,18.8280
-no block-linking,96,0,calltree,jit-on,5092000,5.0920
-no block-linking,96,0,calltree,jit-warm,4711000,4.7110
-no block-linking,96,0,countloop,interp,20347000,20.3470
-no block-linking,96,0,countloop,jit-on,4819000,4.8190
-no block-linking,96,0,countloop,jit-warm,4364000,4.3640
-no block-linking,96,1,arith,interp,19949000,19.9490
-no block-linking,96,1,arith,jit-on,1986000,1.9860
-no block-linking,96,1,arith,jit-warm,1559000,1.5590
-no block-linking,96,1,memmix,interp,17880000,17.8800
-no block-linking,96,1,memmix,jit-on,4118000,4.1180
-no block-linking,96,1,memmix,jit-warm,3542000,3.5420
-no block-linking,96,1,calltree,interp,19331000,19.3310
-no block-linking,96,1,calltree,jit-on,5230000,5.2300
-no block-linking,96,1,calltree,jit-warm,4774000,4.7740
-no block-linking,96,1,countloop,interp,20306000,20.3060
-no block-linking,96,1,countloop,jit-on,4737000,4.7370
-no block-linking,96,1,countloop,jit-warm,4367000,4.3670
-no block-linking,128,0,arith,interp,19991000,19.9910
-no block-linking,128,0,arith,jit-on,2051000,2.0510
-no block-linking,128,0,arith,jit-warm,1611000,1.6110
-no block-linking,128,0,memmix,interp,18062000,18.0620
-no block-linking,128,0,memmix,jit-on,4002000,4.0020
-no block-linking,128,0,memmix,jit-warm,3502000,3.5020
-no block-linking,128,0,calltree,interp,18419000,18.4190
-no block-linking,128,0,calltree,jit-on,5217000,5.2170
-no block-linking,128,0,calltree,jit-warm,4792000,4.7920
-no block-linking,128,0,countloop,interp,20205000,20.2050
-no block-linking,128,0,countloop,jit-on,4927000,4.9270
-no block-linking,128,0,countloop,jit-warm,4437000,4.4370
-no block-linking,128,1,arith,interp,20057000,20.0570
-no block-linking,128,1,arith,jit-on,2063000,2.0630
-no block-linking,128,1,arith,jit-warm,1616000,1.6160
-no block-linking,128,1,memmix,interp,18553000,18.5530
-no block-linking,128,1,memmix,jit-on,4217000,4.2170
-no block-linking,128,1,memmix,jit-warm,3630000,3.6300
-no block-linking,128,1,calltree,interp,18935000,18.9350
-no block-linking,128,1,calltree,jit-on,5294000,5.2940
-no block-linking,128,1,calltree,jit-warm,5010000,5.0100
-no block-linking,128,1,countloop,interp,19794000,19.7940
-no block-linking,128,1,countloop,jit-on,4846000,4.8460
-no block-linking,128,1,countloop,jit-warm,4457000,4.4570
-no block-linking,192,0,arith,interp,19897000,19.8970
-no block-linking,192,0,arith,jit-on,2011000,2.0110
-no block-linking,192,0,arith,jit-warm,1518000,1.5180
-no block-linking,192,0,memmix,interp,17978000,17.9780
-no block-linking,192,0,memmix,jit-on,4075000,4.0750
-no block-linking,192,0,memmix,jit-warm,3473000,3.4730
-no block-linking,192,0,calltree,interp,18544000,18.5440
-no block-linking,192,0,calltree,jit-on,5181000,5.1810
-no block-linking,192,0,calltree,jit-warm,4843000,4.8430
-no block-linking,192,0,countloop,interp,20314000,20.3140
-no block-linking,192,0,countloop,jit-on,4902000,4.9020
-no block-linking,192,0,countloop,jit-warm,4380000,4.3800
-no block-linking,192,1,arith,interp,19294000,19.2940
-no block-linking,192,1,arith,jit-on,2088000,2.0880
-no block-linking,192,1,arith,jit-warm,1540000,1.5400
-no block-linking,192,1,memmix,interp,17465000,17.4650
-no block-linking,192,1,memmix,jit-on,3968000,3.9680
-no block-linking,192,1,memmix,jit-warm,3455000,3.4550
-no block-linking,192,1,calltree,interp,18311000,18.3110
-no block-linking,192,1,calltree,jit-on,5061000,5.0610
-no block-linking,192,1,calltree,jit-warm,4573000,4.5730
-no block-linking,192,1,countloop,interp,18786000,18.7860
-no block-linking,192,1,countloop,jit-on,4531000,4.5310
-no block-linking,192,1,countloop,jit-warm,4175000,4.1750
-no block-linking,256,0,arith,interp,19775000,19.7750
-no block-linking,256,0,arith,jit-on,1968000,1.9680
+default,192,1,countloop,jit-warm,1106000,1.1060
+default,192,1,nqueens,interp,18842000,18.8420
+default,192,1,nqueens,jit-on,3607000,3.6070
+default,192,1,nqueens,jit-warm,2696000,2.6960
+default,256,0,arith,interp,21896000,21.8960
+default,256,0,arith,jit-on,1652000,1.6520
+default,256,0,arith,jit-warm,979000,0.9790
+default,256,0,memmix,interp,19222000,19.2220
+default,256,0,memmix,jit-on,2625000,2.6250
+default,256,0,memmix,jit-warm,2055000,2.0550
+default,256,0,calltree,interp,19936000,19.9360
+default,256,0,calltree,jit-on,2576000,2.5760
+default,256,0,calltree,jit-warm,2020000,2.0200
+default,256,0,countloop,interp,22498000,22.4980
+default,256,0,countloop,jit-on,1561000,1.5610
+default,256,0,countloop,jit-warm,1084000,1.0840
+default,256,0,nqueens,interp,18513000,18.5130
+default,256,0,nqueens,jit-on,3547000,3.5470
+default,256,0,nqueens,jit-warm,2686000,2.6860
+default,256,1,arith,interp,22245000,22.2450
+default,256,1,arith,jit-on,1670000,1.6700
+default,256,1,arith,jit-warm,971000,0.9710
+default,256,1,memmix,interp,18570000,18.5700
+default,256,1,memmix,jit-on,2631000,2.6310
+default,256,1,memmix,jit-warm,2091000,2.0910
+default,256,1,calltree,interp,19518000,19.5180
+default,256,1,calltree,jit-on,2467000,2.4670
+default,256,1,calltree,jit-warm,1921000,1.9210
+default,256,1,countloop,interp,21422000,21.4220
+default,256,1,countloop,jit-on,1495000,1.4950
+default,256,1,countloop,jit-warm,1072000,1.0720
+default,256,1,nqueens,interp,18576000,18.5760
+default,256,1,nqueens,jit-on,3431000,3.4310
+default,256,1,nqueens,jit-warm,2660000,2.6600
+no block-linking,0.5,0,arith,interp,28268000,28.2680
+no block-linking,0.5,0,arith,jit-on,2332766000,2332.7660
+no block-linking,0.5,0,memmix,interp,23843000,23.8430
+no block-linking,0.5,0,memmix,jit-on,4819000,4.8190
+no block-linking,0.5,0,calltree,interp,26011000,26.0110
+no block-linking,0.5,0,calltree,jit-on,5523000,5.5230
+no block-linking,0.5,0,countloop,interp,28197000,28.1970
+no block-linking,0.5,0,countloop,jit-on,448959000,448.9590
+no block-linking,0.5,0,nqueens,interp,24516000,24.5160
+no block-linking,0.5,0,nqueens,jit-on,458065000,458.0650
+no block-linking,0.5,1,arith,interp,27858000,27.8580
+no block-linking,0.5,1,arith,jit-on,2909203000,2909.2030
+no block-linking,0.5,1,memmix,interp,23624000,23.6240
+no block-linking,0.5,1,memmix,jit-on,4757000,4.7570
+no block-linking,0.5,1,calltree,interp,24675000,24.6750
+no block-linking,0.5,1,calltree,jit-on,5532000,5.5320
+no block-linking,0.5,1,countloop,interp,27614000,27.6140
+no block-linking,0.5,1,countloop,jit-on,437465000,437.4650
+no block-linking,0.5,1,nqueens,interp,24008000,24.0080
+no block-linking,0.5,1,nqueens,jit-on,454173000,454.1730
+no block-linking,1,0,arith,interp,28450000,28.4500
+no block-linking,1,0,arith,jit-on,2088000,2.0880
+no block-linking,1,0,memmix,interp,23446000,23.4460
+no block-linking,1,0,memmix,jit-on,3998000,3.9980
+no block-linking,1,0,memmix,jit-warm,3520000,3.5200
+no block-linking,1,0,calltree,interp,24299000,24.2990
+no block-linking,1,0,calltree,jit-on,5127000,5.1270
+no block-linking,1,0,calltree,jit-warm,4834000,4.8340
+no block-linking,1,0,countloop,interp,27783000,27.7830
+no block-linking,1,0,countloop,jit-on,4713000,4.7130
+no block-linking,1,0,countloop,jit-warm,4252000,4.2520
+no block-linking,1,0,nqueens,interp,24318000,24.3180
+no block-linking,1,0,nqueens,jit-on,3858000,3.8580
+no block-linking,1,1,arith,interp,27631000,27.6310
+no block-linking,1,1,arith,jit-on,2106000,2.1060
+no block-linking,1,1,memmix,interp,23448000,23.4480
+no block-linking,1,1,memmix,jit-on,4030000,4.0300
+no block-linking,1,1,memmix,jit-warm,3460000,3.4600
+no block-linking,1,1,calltree,interp,24521000,24.5210
+no block-linking,1,1,calltree,jit-on,5159000,5.1590
+no block-linking,1,1,calltree,jit-warm,4620000,4.6200
+no block-linking,1,1,countloop,interp,27693000,27.6930
+no block-linking,1,1,countloop,jit-on,4759000,4.7590
+no block-linking,1,1,countloop,jit-warm,4202000,4.2020
+no block-linking,1,1,nqueens,interp,27140000,27.1400
+no block-linking,1,1,nqueens,jit-on,4002000,4.0020
+no block-linking,2,0,arith,interp,27733000,27.7330
+no block-linking,2,0,arith,jit-on,2059000,2.0590
+no block-linking,2,0,arith,jit-warm,1636000,1.6360
+no block-linking,2,0,memmix,interp,23276000,23.2760
+no block-linking,2,0,memmix,jit-on,4135000,4.1350
+no block-linking,2,0,memmix,jit-warm,3564000,3.5640
+no block-linking,2,0,calltree,interp,24276000,24.2760
+no block-linking,2,0,calltree,jit-on,5372000,5.3720
+no block-linking,2,0,calltree,jit-warm,5008000,5.0080
+no block-linking,2,0,countloop,interp,26979000,26.9790
+no block-linking,2,0,countloop,jit-on,5173000,5.1730
+no block-linking,2,0,countloop,jit-warm,4586000,4.5860
+no block-linking,2,0,nqueens,interp,25295000,25.2950
+no block-linking,2,0,nqueens,jit-on,4121000,4.1210
+no block-linking,2,0,nqueens,jit-warm,3289000,3.2890
+no block-linking,2,1,arith,interp,26720000,26.7200
+no block-linking,2,1,arith,jit-on,2010000,2.0100
+no block-linking,2,1,arith,jit-warm,1556000,1.5560
+no block-linking,2,1,memmix,interp,23337000,23.3370
+no block-linking,2,1,memmix,jit-on,4030000,4.0300
+no block-linking,2,1,memmix,jit-warm,3479000,3.4790
+no block-linking,2,1,calltree,interp,24559000,24.5590
+no block-linking,2,1,calltree,jit-on,5102000,5.1020
+no block-linking,2,1,calltree,jit-warm,4653000,4.6530
+no block-linking,2,1,countloop,interp,27181000,27.1810
+no block-linking,2,1,countloop,jit-on,4728000,4.7280
+no block-linking,2,1,countloop,jit-warm,4279000,4.2790
+no block-linking,2,1,nqueens,interp,24198000,24.1980
+no block-linking,2,1,nqueens,jit-on,3848000,3.8480
+no block-linking,2,1,nqueens,jit-warm,3137000,3.1370
+no block-linking,4,0,arith,interp,27687000,27.6870
+no block-linking,4,0,arith,jit-on,2032000,2.0320
+no block-linking,4,0,arith,jit-warm,1600000,1.6000
+no block-linking,4,0,memmix,interp,24145000,24.1450
+no block-linking,4,0,memmix,jit-on,4290000,4.2900
+no block-linking,4,0,memmix,jit-warm,3801000,3.8010
+no block-linking,4,0,calltree,interp,25420000,25.4200
+no block-linking,4,0,calltree,jit-on,5438000,5.4380
+no block-linking,4,0,calltree,jit-warm,4974000,4.9740
+no block-linking,4,0,countloop,interp,28044000,28.0440
+no block-linking,4,0,countloop,jit-on,4841000,4.8410
+no block-linking,4,0,countloop,jit-warm,4408000,4.4080
+no block-linking,4,0,nqueens,interp,24290000,24.2900
+no block-linking,4,0,nqueens,jit-on,3968000,3.9680
+no block-linking,4,0,nqueens,jit-warm,3199000,3.1990
+no block-linking,4,1,arith,interp,27267000,27.2670
+no block-linking,4,1,arith,jit-on,2048000,2.0480
+no block-linking,4,1,arith,jit-warm,1597000,1.5970
+no block-linking,4,1,memmix,interp,24379000,24.3790
+no block-linking,4,1,memmix,jit-on,4102000,4.1020
+no block-linking,4,1,memmix,jit-warm,3527000,3.5270
+no block-linking,4,1,calltree,interp,24444000,24.4440
+no block-linking,4,1,calltree,jit-on,5313000,5.3130
+no block-linking,4,1,calltree,jit-warm,4821000,4.8210
+no block-linking,4,1,countloop,interp,27103000,27.1030
+no block-linking,4,1,countloop,jit-on,4833000,4.8330
+no block-linking,4,1,countloop,jit-warm,4454000,4.4540
+no block-linking,4,1,nqueens,interp,24254000,24.2540
+no block-linking,4,1,nqueens,jit-on,3859000,3.8590
+no block-linking,4,1,nqueens,jit-warm,3093000,3.0930
+no block-linking,8,0,arith,interp,27876000,27.8760
+no block-linking,8,0,arith,jit-on,2068000,2.0680
+no block-linking,8,0,arith,jit-warm,1556000,1.5560
+no block-linking,8,0,memmix,interp,23785000,23.7850
+no block-linking,8,0,memmix,jit-on,4085000,4.0850
+no block-linking,8,0,memmix,jit-warm,3600000,3.6000
+no block-linking,8,0,calltree,interp,25563000,25.5630
+no block-linking,8,0,calltree,jit-on,5215000,5.2150
+no block-linking,8,0,calltree,jit-warm,4779000,4.7790
+no block-linking,8,0,countloop,interp,28194000,28.1940
+no block-linking,8,0,countloop,jit-on,4790000,4.7900
+no block-linking,8,0,countloop,jit-warm,4444000,4.4440
+no block-linking,8,0,nqueens,interp,24302000,24.3020
+no block-linking,8,0,nqueens,jit-on,3933000,3.9330
+no block-linking,8,0,nqueens,jit-warm,3266000,3.2660
+no block-linking,8,1,arith,interp,27746000,27.7460
+no block-linking,8,1,arith,jit-on,2135000,2.1350
+no block-linking,8,1,arith,jit-warm,1543000,1.5430
+no block-linking,8,1,memmix,interp,23808000,23.8080
+no block-linking,8,1,memmix,jit-on,4131000,4.1310
+no block-linking,8,1,memmix,jit-warm,3597000,3.5970
+no block-linking,8,1,calltree,interp,25394000,25.3940
+no block-linking,8,1,calltree,jit-on,5145000,5.1450
+no block-linking,8,1,calltree,jit-warm,4699000,4.6990
+no block-linking,8,1,countloop,interp,28947000,28.9470
+no block-linking,8,1,countloop,jit-on,4933000,4.9330
+no block-linking,8,1,countloop,jit-warm,4528000,4.5280
+no block-linking,8,1,nqueens,interp,24775000,24.7750
+no block-linking,8,1,nqueens,jit-on,3936000,3.9360
+no block-linking,8,1,nqueens,jit-warm,3207000,3.2070
+no block-linking,16,0,arith,interp,27930000,27.9300
+no block-linking,16,0,arith,jit-on,1999000,1.9990
+no block-linking,16,0,arith,jit-warm,1574000,1.5740
+no block-linking,16,0,memmix,interp,23402000,23.4020
+no block-linking,16,0,memmix,jit-on,4089000,4.0890
+no block-linking,16,0,memmix,jit-warm,3495000,3.4950
+no block-linking,16,0,calltree,interp,25559000,25.5590
+no block-linking,16,0,calltree,jit-on,5100000,5.1000
+no block-linking,16,0,calltree,jit-warm,4741000,4.7410
+no block-linking,16,0,countloop,interp,28481000,28.4810
+no block-linking,16,0,countloop,jit-on,4683000,4.6830
+no block-linking,16,0,countloop,jit-warm,4175000,4.1750
+no block-linking,16,0,nqueens,interp,24150000,24.1500
+no block-linking,16,0,nqueens,jit-on,4015000,4.0150
+no block-linking,16,0,nqueens,jit-warm,3254000,3.2540
+no block-linking,16,1,arith,interp,27056000,27.0560
+no block-linking,16,1,arith,jit-on,2039000,2.0390
+no block-linking,16,1,arith,jit-warm,1621000,1.6210
+no block-linking,16,1,memmix,interp,23502000,23.5020
+no block-linking,16,1,memmix,jit-on,4123000,4.1230
+no block-linking,16,1,memmix,jit-warm,3463000,3.4630
+no block-linking,16,1,calltree,interp,24159000,24.1590
+no block-linking,16,1,calltree,jit-on,5368000,5.3680
+no block-linking,16,1,calltree,jit-warm,4808000,4.8080
+no block-linking,16,1,countloop,interp,26982000,26.9820
+no block-linking,16,1,countloop,jit-on,4898000,4.8980
+no block-linking,16,1,countloop,jit-warm,4322000,4.3220
+no block-linking,16,1,nqueens,interp,23763000,23.7630
+no block-linking,16,1,nqueens,jit-on,3732000,3.7320
+no block-linking,16,1,nqueens,jit-warm,3026000,3.0260
+no block-linking,32,0,arith,interp,27403000,27.4030
+no block-linking,32,0,arith,jit-on,2032000,2.0320
+no block-linking,32,0,arith,jit-warm,1566000,1.5660
+no block-linking,32,0,memmix,interp,23250000,23.2500
+no block-linking,32,0,memmix,jit-on,3973000,3.9730
+no block-linking,32,0,memmix,jit-warm,3382000,3.3820
+no block-linking,32,0,calltree,interp,24273000,24.2730
+no block-linking,32,0,calltree,jit-on,5167000,5.1670
+no block-linking,32,0,calltree,jit-warm,4557000,4.5570
+no block-linking,32,0,countloop,interp,27142000,27.1420
+no block-linking,32,0,countloop,jit-on,4716000,4.7160
+no block-linking,32,0,countloop,jit-warm,4263000,4.2630
+no block-linking,32,0,nqueens,interp,23786000,23.7860
+no block-linking,32,0,nqueens,jit-on,3729000,3.7290
+no block-linking,32,0,nqueens,jit-warm,3096000,3.0960
+no block-linking,32,1,arith,interp,27541000,27.5410
+no block-linking,32,1,arith,jit-on,2055000,2.0550
+no block-linking,32,1,arith,jit-warm,1605000,1.6050
+no block-linking,32,1,memmix,interp,23280000,23.2800
+no block-linking,32,1,memmix,jit-on,4068000,4.0680
+no block-linking,32,1,memmix,jit-warm,3542000,3.5420
+no block-linking,32,1,calltree,interp,24787000,24.7870
+no block-linking,32,1,calltree,jit-on,5383000,5.3830
+no block-linking,32,1,calltree,jit-warm,5042000,5.0420
+no block-linking,32,1,countloop,interp,28179000,28.1790
+no block-linking,32,1,countloop,jit-on,4903000,4.9030
+no block-linking,32,1,countloop,jit-warm,4476000,4.4760
+no block-linking,32,1,nqueens,interp,23922000,23.9220
+no block-linking,32,1,nqueens,jit-on,3896000,3.8960
+no block-linking,32,1,nqueens,jit-warm,3212000,3.2120
+no block-linking,64,0,arith,interp,27586000,27.5860
+no block-linking,64,0,arith,jit-on,2052000,2.0520
+no block-linking,64,0,arith,jit-warm,1573000,1.5730
+no block-linking,64,0,memmix,interp,23160000,23.1600
+no block-linking,64,0,memmix,jit-on,4014000,4.0140
+no block-linking,64,0,memmix,jit-warm,3442000,3.4420
+no block-linking,64,0,calltree,interp,24777000,24.7770
+no block-linking,64,0,calltree,jit-on,5300000,5.3000
+no block-linking,64,0,calltree,jit-warm,4691000,4.6910
+no block-linking,64,0,countloop,interp,27193000,27.1930
+no block-linking,64,0,countloop,jit-on,4735000,4.7350
+no block-linking,64,0,countloop,jit-warm,4255000,4.2550
+no block-linking,64,0,nqueens,interp,24316000,24.3160
+no block-linking,64,0,nqueens,jit-on,3732000,3.7320
+no block-linking,64,0,nqueens,jit-warm,3056000,3.0560
+no block-linking,64,1,arith,interp,27762000,27.7620
+no block-linking,64,1,arith,jit-on,2014000,2.0140
+no block-linking,64,1,arith,jit-warm,1562000,1.5620
+no block-linking,64,1,memmix,interp,23553000,23.5530
+no block-linking,64,1,memmix,jit-on,4176000,4.1760
+no block-linking,64,1,memmix,jit-warm,3557000,3.5570
+no block-linking,64,1,calltree,interp,24319000,24.3190
+no block-linking,64,1,calltree,jit-on,5209000,5.2090
+no block-linking,64,1,calltree,jit-warm,4730000,4.7300
+no block-linking,64,1,countloop,interp,28774000,28.7740
+no block-linking,64,1,countloop,jit-on,4727000,4.7270
+no block-linking,64,1,countloop,jit-warm,4464000,4.4640
+no block-linking,64,1,nqueens,interp,24235000,24.2350
+no block-linking,64,1,nqueens,jit-on,3798000,3.7980
+no block-linking,64,1,nqueens,jit-warm,3176000,3.1760
+no block-linking,96,0,arith,interp,27063000,27.0630
+no block-linking,96,0,arith,jit-on,1996000,1.9960
+no block-linking,96,0,arith,jit-warm,1545000,1.5450
+no block-linking,96,0,memmix,interp,23026000,23.0260
+no block-linking,96,0,memmix,jit-on,4016000,4.0160
+no block-linking,96,0,memmix,jit-warm,3446000,3.4460
+no block-linking,96,0,calltree,interp,23969000,23.9690
+no block-linking,96,0,calltree,jit-on,5141000,5.1410
+no block-linking,96,0,calltree,jit-warm,4594000,4.5940
+no block-linking,96,0,countloop,interp,26733000,26.7330
+no block-linking,96,0,countloop,jit-on,4626000,4.6260
+no block-linking,96,0,countloop,jit-warm,4272000,4.2720
+no block-linking,96,0,nqueens,interp,23578000,23.5780
+no block-linking,96,0,nqueens,jit-on,3782000,3.7820
+no block-linking,96,0,nqueens,jit-warm,3165000,3.1650
+no block-linking,96,1,arith,interp,27057000,27.0570
+no block-linking,96,1,arith,jit-on,2022000,2.0220
+no block-linking,96,1,arith,jit-warm,1502000,1.5020
+no block-linking,96,1,memmix,interp,23506000,23.5060
+no block-linking,96,1,memmix,jit-on,4036000,4.0360
+no block-linking,96,1,memmix,jit-warm,3437000,3.4370
+no block-linking,96,1,calltree,interp,24533000,24.5330
+no block-linking,96,1,calltree,jit-on,5184000,5.1840
+no block-linking,96,1,calltree,jit-warm,4641000,4.6410
+no block-linking,96,1,countloop,interp,27237000,27.2370
+no block-linking,96,1,countloop,jit-on,4709000,4.7090
+no block-linking,96,1,countloop,jit-warm,4148000,4.1480
+no block-linking,96,1,nqueens,interp,23919000,23.9190
+no block-linking,96,1,nqueens,jit-on,3787000,3.7870
+no block-linking,96,1,nqueens,jit-warm,3110000,3.1100
+no block-linking,128,0,arith,interp,27477000,27.4770
+no block-linking,128,0,arith,jit-on,2007000,2.0070
+no block-linking,128,0,arith,jit-warm,1517000,1.5170
+no block-linking,128,0,memmix,interp,23527000,23.5270
+no block-linking,128,0,memmix,jit-on,4094000,4.0940
+no block-linking,128,0,memmix,jit-warm,3571000,3.5710
+no block-linking,128,0,calltree,interp,24436000,24.4360
+no block-linking,128,0,calltree,jit-on,5195000,5.1950
+no block-linking,128,0,calltree,jit-warm,4809000,4.8090
+no block-linking,128,0,countloop,interp,28034000,28.0340
+no block-linking,128,0,countloop,jit-on,4802000,4.8020
+no block-linking,128,0,countloop,jit-warm,4290000,4.2900
+no block-linking,128,0,nqueens,interp,24093000,24.0930
+no block-linking,128,0,nqueens,jit-on,3838000,3.8380
+no block-linking,128,0,nqueens,jit-warm,3154000,3.1540
+no block-linking,128,1,arith,interp,27002000,27.0020
+no block-linking,128,1,arith,jit-on,2032000,2.0320
+no block-linking,128,1,arith,jit-warm,1527000,1.5270
+no block-linking,128,1,memmix,interp,22941000,22.9410
+no block-linking,128,1,memmix,jit-on,3963000,3.9630
+no block-linking,128,1,memmix,jit-warm,3448000,3.4480
+no block-linking,128,1,calltree,interp,23657000,23.6570
+no block-linking,128,1,calltree,jit-on,5096000,5.0960
+no block-linking,128,1,calltree,jit-warm,4610000,4.6100
+no block-linking,128,1,countloop,interp,27250000,27.2500
+no block-linking,128,1,countloop,jit-on,4708000,4.7080
+no block-linking,128,1,countloop,jit-warm,4306000,4.3060
+no block-linking,128,1,nqueens,interp,23827000,23.8270
+no block-linking,128,1,nqueens,jit-on,3789000,3.7890
+no block-linking,128,1,nqueens,jit-warm,3075000,3.0750
+no block-linking,192,0,arith,interp,27385000,27.3850
+no block-linking,192,0,arith,jit-on,2068000,2.0680
+no block-linking,192,0,arith,jit-warm,1555000,1.5550
+no block-linking,192,0,memmix,interp,23059000,23.0590
+no block-linking,192,0,memmix,jit-on,4000000,4.0000
+no block-linking,192,0,memmix,jit-warm,3446000,3.4460
+no block-linking,192,0,calltree,interp,23935000,23.9350
+no block-linking,192,0,calltree,jit-on,5191000,5.1910
+no block-linking,192,0,calltree,jit-warm,4771000,4.7710
+no block-linking,192,0,countloop,interp,27353000,27.3530
+no block-linking,192,0,countloop,jit-on,4657000,4.6570
+no block-linking,192,0,countloop,jit-warm,4254000,4.2540
+no block-linking,192,0,nqueens,interp,24144000,24.1440
+no block-linking,192,0,nqueens,jit-on,3748000,3.7480
+no block-linking,192,0,nqueens,jit-warm,3084000,3.0840
+no block-linking,192,1,arith,interp,28292000,28.2920
+no block-linking,192,1,arith,jit-on,2055000,2.0550
+no block-linking,192,1,arith,jit-warm,1624000,1.6240
+no block-linking,192,1,memmix,interp,23218000,23.2180
+no block-linking,192,1,memmix,jit-on,4147000,4.1470
+no block-linking,192,1,memmix,jit-warm,3505000,3.5050
+no block-linking,192,1,calltree,interp,25495000,25.4950
+no block-linking,192,1,calltree,jit-on,5462000,5.4620
+no block-linking,192,1,calltree,jit-warm,4958000,4.9580
+no block-linking,192,1,countloop,interp,28139000,28.1390
+no block-linking,192,1,countloop,jit-on,4897000,4.8970
+no block-linking,192,1,countloop,jit-warm,4275000,4.2750
+no block-linking,192,1,nqueens,interp,24266000,24.2660
+no block-linking,192,1,nqueens,jit-on,3990000,3.9900
+no block-linking,192,1,nqueens,jit-warm,3259000,3.2590
+no block-linking,256,0,arith,interp,27438000,27.4380
+no block-linking,256,0,arith,jit-on,2058000,2.0580
 no block-linking,256,0,arith,jit-warm,1557000,1.5570
-no block-linking,256,0,memmix,interp,17854000,17.8540
-no block-linking,256,0,memmix,jit-on,4180000,4.1800
-no block-linking,256,0,memmix,jit-warm,3605000,3.6050
-no block-linking,256,0,calltree,interp,18876000,18.8760
-no block-linking,256,0,calltree,jit-on,5281000,5.2810
-no block-linking,256,0,calltree,jit-warm,4701000,4.7010
-no block-linking,256,0,countloop,interp,20154000,20.1540
-no block-linking,256,0,countloop,jit-on,4730000,4.7300
-no block-linking,256,0,countloop,jit-warm,4460000,4.4600
-no block-linking,256,1,arith,interp,19988000,19.9880
-no block-linking,256,1,arith,jit-on,2058000,2.0580
-no block-linking,256,1,arith,jit-warm,1516000,1.5160
-no block-linking,256,1,memmix,interp,18159000,18.1590
-no block-linking,256,1,memmix,jit-on,4029000,4.0290
-no block-linking,256,1,memmix,jit-warm,3559000,3.5590
-no block-linking,256,1,calltree,interp,18947000,18.9470
-no block-linking,256,1,calltree,jit-on,5060000,5.0600
-no block-linking,256,1,calltree,jit-warm,4706000,4.7060
-no block-linking,256,1,countloop,interp,20947000,20.9470
-no block-linking,256,1,countloop,jit-on,4746000,4.7460
-no block-linking,256,1,countloop,jit-warm,4351000,4.3510
-no inline arith,0.5,0,arith,interp,20189000,20.1890
-no inline arith,0.5,0,arith,jit-on,8060000,8.0600
-no inline arith,0.5,0,memmix,interp,18055000,18.0550
-no inline arith,0.5,0,memmix,jit-on,5779000,5.7790
-no inline arith,0.5,0,calltree,interp,19635000,19.6350
-no inline arith,0.5,0,calltree,jit-on,7814000,7.8140
-no inline arith,0.5,0,countloop,interp,19905000,19.9050
-no inline arith,0.5,0,countloop,jit-on,6306000,6.3060
-no inline arith,0.5,1,arith,interp,19159000,19.1590
-no inline arith,0.5,1,arith,jit-on,7671000,7.6710
-no inline arith,0.5,1,memmix,interp,17758000,17.7580
-no inline arith,0.5,1,memmix,jit-on,5168000,5.1680
-no inline arith,0.5,1,calltree,interp,19097000,19.0970
-no inline arith,0.5,1,calltree,jit-on,7503000,7.5030
-no inline arith,0.5,1,countloop,interp,19913000,19.9130
-no inline arith,0.5,1,countloop,jit-on,6075000,6.0750
-no inline arith,1,0,arith,interp,19906000,19.9060
-no inline arith,1,0,arith,jit-on,8159000,8.1590
-no inline arith,1,0,arith,jit-warm,7653000,7.6530
-no inline arith,1,0,memmix,interp,18035000,18.0350
-no inline arith,1,0,memmix,jit-on,5367000,5.3670
-no inline arith,1,0,memmix,jit-warm,4840000,4.8400
-no inline arith,1,0,calltree,interp,19634000,19.6340
-no inline arith,1,0,calltree,jit-on,7765000,7.7650
-no inline arith,1,0,calltree,jit-warm,7380000,7.3800
-no inline arith,1,0,countloop,interp,20400000,20.4000
-no inline arith,1,0,countloop,jit-on,7252000,7.2520
-no inline arith,1,0,countloop,jit-warm,6851000,6.8510
-no inline arith,1,1,arith,interp,19025000,19.0250
-no inline arith,1,1,arith,jit-on,7957000,7.9570
-no inline arith,1,1,arith,jit-warm,7508000,7.5080
-no inline arith,1,1,memmix,interp,17664000,17.6640
-no inline arith,1,1,memmix,jit-on,5180000,5.1800
-no inline arith,1,1,memmix,jit-warm,4807000,4.8070
-no inline arith,1,1,calltree,interp,19205000,19.2050
-no inline arith,1,1,calltree,jit-on,7502000,7.5020
-no inline arith,1,1,calltree,jit-warm,7160000,7.1600
-no inline arith,1,1,countloop,interp,20080000,20.0800
-no inline arith,1,1,countloop,jit-on,7100000,7.1000
-no inline arith,1,1,countloop,jit-warm,6559000,6.5590
-no inline arith,2,0,arith,interp,19749000,19.7490
-no inline arith,2,0,arith,jit-on,8208000,8.2080
-no inline arith,2,0,arith,jit-warm,7656000,7.6560
-no inline arith,2,0,memmix,interp,18079000,18.0790
-no inline arith,2,0,memmix,jit-on,5335000,5.3350
-no inline arith,2,0,memmix,jit-warm,4789000,4.7890
-no inline arith,2,0,calltree,interp,19641000,19.6410
-no inline arith,2,0,calltree,jit-on,7746000,7.7460
-no inline arith,2,0,calltree,jit-warm,7398000,7.3980
-no inline arith,2,0,countloop,interp,20439000,20.4390
-no inline arith,2,0,countloop,jit-on,7264000,7.2640
-no inline arith,2,0,countloop,jit-warm,6904000,6.9040
-no inline arith,2,1,arith,interp,20564000,20.5640
-no inline arith,2,1,arith,jit-on,8236000,8.2360
-no inline arith,2,1,arith,jit-warm,7555000,7.5550
-no inline arith,2,1,memmix,interp,18066000,18.0660
-no inline arith,2,1,memmix,jit-on,5224000,5.2240
-no inline arith,2,1,memmix,jit-warm,4781000,4.7810
-no inline arith,2,1,calltree,interp,19634000,19.6340
-no inline arith,2,1,calltree,jit-on,7680000,7.6800
-no inline arith,2,1,calltree,jit-warm,7333000,7.3330
-no inline arith,2,1,countloop,interp,20470000,20.4700
-no inline arith,2,1,countloop,jit-on,7008000,7.0080
-no inline arith,2,1,countloop,jit-warm,6632000,6.6320
-no inline arith,4,0,arith,interp,19764000,19.7640
-no inline arith,4,0,arith,jit-on,8020000,8.0200
-no inline arith,4,0,arith,jit-warm,7496000,7.4960
-no inline arith,4,0,memmix,interp,18158000,18.1580
-no inline arith,4,0,memmix,jit-on,5280000,5.2800
-no inline arith,4,0,memmix,jit-warm,4667000,4.6670
-no inline arith,4,0,calltree,interp,19313000,19.3130
-no inline arith,4,0,calltree,jit-on,7593000,7.5930
-no inline arith,4,0,calltree,jit-warm,7160000,7.1600
-no inline arith,4,0,countloop,interp,20122000,20.1220
-no inline arith,4,0,countloop,jit-on,6952000,6.9520
-no inline arith,4,0,countloop,jit-warm,6488000,6.4880
-no inline arith,4,1,arith,interp,19789000,19.7890
-no inline arith,4,1,arith,jit-on,8179000,8.1790
-no inline arith,4,1,arith,jit-warm,7723000,7.7230
-no inline arith,4,1,memmix,interp,18089000,18.0890
-no inline arith,4,1,memmix,jit-on,5390000,5.3900
-no inline arith,4,1,memmix,jit-warm,4785000,4.7850
-no inline arith,4,1,calltree,interp,19519000,19.5190
-no inline arith,4,1,calltree,jit-on,7848000,7.8480
-no inline arith,4,1,calltree,jit-warm,7385000,7.3850
-no inline arith,4,1,countloop,interp,19932000,19.9320
-no inline arith,4,1,countloop,jit-on,7242000,7.2420
-no inline arith,4,1,countloop,jit-warm,6816000,6.8160
-no inline arith,8,0,arith,interp,18954000,18.9540
-no inline arith,8,0,arith,jit-on,7977000,7.9770
-no inline arith,8,0,arith,jit-warm,7594000,7.5940
-no inline arith,8,0,memmix,interp,17393000,17.3930
-no inline arith,8,0,memmix,jit-on,5155000,5.1550
-no inline arith,8,0,memmix,jit-warm,4633000,4.6330
-no inline arith,8,0,calltree,interp,18916000,18.9160
-no inline arith,8,0,calltree,jit-on,7565000,7.5650
-no inline arith,8,0,calltree,jit-warm,7095000,7.0950
-no inline arith,8,0,countloop,interp,19861000,19.8610
-no inline arith,8,0,countloop,jit-on,6979000,6.9790
-no inline arith,8,0,countloop,jit-warm,6540000,6.5400
-no inline arith,8,1,arith,interp,19188000,19.1880
-no inline arith,8,1,arith,jit-on,8104000,8.1040
-no inline arith,8,1,arith,jit-warm,7580000,7.5800
-no inline arith,8,1,memmix,interp,17757000,17.7570
-no inline arith,8,1,memmix,jit-on,5088000,5.0880
-no inline arith,8,1,memmix,jit-warm,4616000,4.6160
-no inline arith,8,1,calltree,interp,19030000,19.0300
-no inline arith,8,1,calltree,jit-on,7582000,7.5820
-no inline arith,8,1,calltree,jit-warm,7046000,7.0460
-no inline arith,8,1,countloop,interp,19708000,19.7080
-no inline arith,8,1,countloop,jit-on,7058000,7.0580
-no inline arith,8,1,countloop,jit-warm,6726000,6.7260
-no inline arith,16,0,arith,interp,20115000,20.1150
-no inline arith,16,0,arith,jit-on,8081000,8.0810
-no inline arith,16,0,arith,jit-warm,9027000,9.0270
-no inline arith,16,0,memmix,interp,18640000,18.6400
-no inline arith,16,0,memmix,jit-on,5319000,5.3190
-no inline arith,16,0,memmix,jit-warm,4731000,4.7310
-no inline arith,16,0,calltree,interp,19694000,19.6940
-no inline arith,16,0,calltree,jit-on,7628000,7.6280
-no inline arith,16,0,calltree,jit-warm,7211000,7.2110
-no inline arith,16,0,countloop,interp,20032000,20.0320
-no inline arith,16,0,countloop,jit-on,7126000,7.1260
-no inline arith,16,0,countloop,jit-warm,6673000,6.6730
-no inline arith,16,1,arith,interp,19446000,19.4460
-no inline arith,16,1,arith,jit-on,7860000,7.8600
-no inline arith,16,1,arith,jit-warm,7495000,7.4950
-no inline arith,16,1,memmix,interp,17798000,17.7980
-no inline arith,16,1,memmix,jit-on,5229000,5.2290
-no inline arith,16,1,memmix,jit-warm,4770000,4.7700
-no inline arith,16,1,calltree,interp,19125000,19.1250
-no inline arith,16,1,calltree,jit-on,7669000,7.6690
-no inline arith,16,1,calltree,jit-warm,7089000,7.0890
-no inline arith,16,1,countloop,interp,19568000,19.5680
-no inline arith,16,1,countloop,jit-on,6919000,6.9190
-no inline arith,16,1,countloop,jit-warm,6727000,6.7270
-no inline arith,32,0,arith,interp,19211000,19.2110
-no inline arith,32,0,arith,jit-on,8008000,8.0080
-no inline arith,32,0,arith,jit-warm,7551000,7.5510
-no inline arith,32,0,memmix,interp,17647000,17.6470
-no inline arith,32,0,memmix,jit-on,5151000,5.1510
-no inline arith,32,0,memmix,jit-warm,4654000,4.6540
-no inline arith,32,0,calltree,interp,19415000,19.4150
-no inline arith,32,0,calltree,jit-on,7482000,7.4820
-no inline arith,32,0,calltree,jit-warm,7128000,7.1280
-no inline arith,32,0,countloop,interp,19706000,19.7060
-no inline arith,32,0,countloop,jit-on,7068000,7.0680
-no inline arith,32,0,countloop,jit-warm,6584000,6.5840
-no inline arith,32,1,arith,interp,19329000,19.3290
-no inline arith,32,1,arith,jit-on,8023000,8.0230
-no inline arith,32,1,arith,jit-warm,7539000,7.5390
-no inline arith,32,1,memmix,interp,17354000,17.3540
-no inline arith,32,1,memmix,jit-on,5119000,5.1190
-no inline arith,32,1,memmix,jit-warm,4645000,4.6450
-no inline arith,32,1,calltree,interp,18957000,18.9570
-no inline arith,32,1,calltree,jit-on,7447000,7.4470
-no inline arith,32,1,calltree,jit-warm,7118000,7.1180
-no inline arith,32,1,countloop,interp,19433000,19.4330
-no inline arith,32,1,countloop,jit-on,7016000,7.0160
-no inline arith,32,1,countloop,jit-warm,6673000,6.6730
-no inline arith,64,0,arith,interp,19813000,19.8130
-no inline arith,64,0,arith,jit-on,13075000,13.0750
-no inline arith,64,0,arith,jit-warm,7747000,7.7470
-no inline arith,64,0,memmix,interp,18022000,18.0220
-no inline arith,64,0,memmix,jit-on,6240000,6.2400
-no inline arith,64,0,memmix,jit-warm,4773000,4.7730
-no inline arith,64,0,calltree,interp,19482000,19.4820
-no inline arith,64,0,calltree,jit-on,7735000,7.7350
-no inline arith,64,0,calltree,jit-warm,7052000,7.0520
-no inline arith,64,0,countloop,interp,20392000,20.3920
-no inline arith,64,0,countloop,jit-on,7334000,7.3340
-no inline arith,64,0,countloop,jit-warm,6536000,6.5360
-no inline arith,64,1,arith,interp,19859000,19.8590
-no inline arith,64,1,arith,jit-on,8455000,8.4550
-no inline arith,64,1,arith,jit-warm,7543000,7.5430
-no inline arith,64,1,memmix,interp,18083000,18.0830
-no inline arith,64,1,memmix,jit-on,5292000,5.2920
-no inline arith,64,1,memmix,jit-warm,4648000,4.6480
-no inline arith,64,1,calltree,interp,19609000,19.6090
-no inline arith,64,1,calltree,jit-on,8791000,8.7910
-no inline arith,64,1,calltree,jit-warm,7187000,7.1870
-no inline arith,64,1,countloop,interp,20360000,20.3600
-no inline arith,64,1,countloop,jit-on,7042000,7.0420
-no inline arith,64,1,countloop,jit-warm,6638000,6.6380
-no inline arith,96,0,arith,interp,19311000,19.3110
-no inline arith,96,0,arith,jit-on,7985000,7.9850
-no inline arith,96,0,arith,jit-warm,7468000,7.4680
-no inline arith,96,0,memmix,interp,17551000,17.5510
-no inline arith,96,0,memmix,jit-on,5213000,5.2130
-no inline arith,96,0,memmix,jit-warm,4576000,4.5760
-no inline arith,96,0,calltree,interp,19113000,19.1130
-no inline arith,96,0,calltree,jit-on,7583000,7.5830
-no inline arith,96,0,calltree,jit-warm,6964000,6.9640
-no inline arith,96,0,countloop,interp,19629000,19.6290
-no inline arith,96,0,countloop,jit-on,6953000,6.9530
-no inline arith,96,0,countloop,jit-warm,6578000,6.5780
-no inline arith,96,1,arith,interp,19015000,19.0150
-no inline arith,96,1,arith,jit-on,7935000,7.9350
-no inline arith,96,1,arith,jit-warm,7418000,7.4180
-no inline arith,96,1,memmix,interp,17772000,17.7720
-no inline arith,96,1,memmix,jit-on,5267000,5.2670
-no inline arith,96,1,memmix,jit-warm,4810000,4.8100
-no inline arith,96,1,calltree,interp,19220000,19.2200
-no inline arith,96,1,calltree,jit-on,7441000,7.4410
-no inline arith,96,1,calltree,jit-warm,6989000,6.9890
-no inline arith,96,1,countloop,interp,19714000,19.7140
-no inline arith,96,1,countloop,jit-on,6830000,6.8300
-no inline arith,96,1,countloop,jit-warm,6437000,6.4370
-no inline arith,128,0,arith,interp,19569000,19.5690
-no inline arith,128,0,arith,jit-on,8082000,8.0820
-no inline arith,128,0,arith,jit-warm,7523000,7.5230
-no inline arith,128,0,memmix,interp,17792000,17.7920
-no inline arith,128,0,memmix,jit-on,5207000,5.2070
-no inline arith,128,0,memmix,jit-warm,4789000,4.7890
-no inline arith,128,0,calltree,interp,19418000,19.4180
-no inline arith,128,0,calltree,jit-on,7626000,7.6260
-no inline arith,128,0,calltree,jit-warm,7212000,7.2120
-no inline arith,128,0,countloop,interp,19969000,19.9690
-no inline arith,128,0,countloop,jit-on,7032000,7.0320
-no inline arith,128,0,countloop,jit-warm,6752000,6.7520
-no inline arith,128,1,arith,interp,19458000,19.4580
-no inline arith,128,1,arith,jit-on,8065000,8.0650
-no inline arith,128,1,arith,jit-warm,7626000,7.6260
-no inline arith,128,1,memmix,interp,17970000,17.9700
-no inline arith,128,1,memmix,jit-on,5249000,5.2490
-no inline arith,128,1,memmix,jit-warm,4710000,4.7100
-no inline arith,128,1,calltree,interp,19232000,19.2320
-no inline arith,128,1,calltree,jit-on,7729000,7.7290
-no inline arith,128,1,calltree,jit-warm,7291000,7.2910
-no inline arith,128,1,countloop,interp,19511000,19.5110
-no inline arith,128,1,countloop,jit-on,6962000,6.9620
-no inline arith,128,1,countloop,jit-warm,6805000,6.8050
-no inline arith,192,0,arith,interp,19767000,19.7670
-no inline arith,192,0,arith,jit-on,8054000,8.0540
-no inline arith,192,0,arith,jit-warm,7541000,7.5410
-no inline arith,192,0,memmix,interp,17945000,17.9450
-no inline arith,192,0,memmix,jit-on,5271000,5.2710
-no inline arith,192,0,memmix,jit-warm,4917000,4.9170
-no inline arith,192,0,calltree,interp,19373000,19.3730
-no inline arith,192,0,calltree,jit-on,7682000,7.6820
-no inline arith,192,0,calltree,jit-warm,7299000,7.2990
-no inline arith,192,0,countloop,interp,20187000,20.1870
-no inline arith,192,0,countloop,jit-on,7218000,7.2180
-no inline arith,192,0,countloop,jit-warm,6759000,6.7590
-no inline arith,192,1,arith,interp,20038000,20.0380
-no inline arith,192,1,arith,jit-on,8115000,8.1150
-no inline arith,192,1,arith,jit-warm,7606000,7.6060
-no inline arith,192,1,memmix,interp,18230000,18.2300
-no inline arith,192,1,memmix,jit-on,5378000,5.3780
-no inline arith,192,1,memmix,jit-warm,4834000,4.8340
-no inline arith,192,1,calltree,interp,19777000,19.7770
-no inline arith,192,1,calltree,jit-on,7664000,7.6640
-no inline arith,192,1,calltree,jit-warm,7404000,7.4040
-no inline arith,192,1,countloop,interp,20156000,20.1560
-no inline arith,192,1,countloop,jit-on,7203000,7.2030
-no inline arith,192,1,countloop,jit-warm,6767000,6.7670
-no inline arith,256,0,arith,interp,19659000,19.6590
-no inline arith,256,0,arith,jit-on,8211000,8.2110
-no inline arith,256,0,arith,jit-warm,7543000,7.5430
-no inline arith,256,0,memmix,interp,18232000,18.2320
-no inline arith,256,0,memmix,jit-on,5307000,5.3070
-no inline arith,256,0,memmix,jit-warm,4873000,4.8730
-no inline arith,256,0,calltree,interp,19455000,19.4550
-no inline arith,256,0,calltree,jit-on,7833000,7.8330
-no inline arith,256,0,calltree,jit-warm,7432000,7.4320
-no inline arith,256,0,countloop,interp,20024000,20.0240
-no inline arith,256,0,countloop,jit-on,7331000,7.3310
-no inline arith,256,0,countloop,jit-warm,7023000,7.0230
-no inline arith,256,1,arith,interp,18829000,18.8290
-no inline arith,256,1,arith,jit-on,8024000,8.0240
-no inline arith,256,1,arith,jit-warm,7549000,7.5490
-no inline arith,256,1,memmix,interp,17829000,17.8290
-no inline arith,256,1,memmix,jit-on,5206000,5.2060
-no inline arith,256,1,memmix,jit-warm,4684000,4.6840
-no inline arith,256,1,calltree,interp,18835000,18.8350
-no inline arith,256,1,calltree,jit-on,7534000,7.5340
-no inline arith,256,1,calltree,jit-warm,7037000,7.0370
-no inline arith,256,1,countloop,interp,19164000,19.1640
-no inline arith,256,1,countloop,jit-on,7014000,7.0140
-no inline arith,256,1,countloop,jit-warm,6581000,6.5810
+no block-linking,256,0,memmix,interp,23519000,23.5190
+no block-linking,256,0,memmix,jit-on,4139000,4.1390
+no block-linking,256,0,memmix,jit-warm,3535000,3.5350
+no block-linking,256,0,calltree,interp,25182000,25.1820
+no block-linking,256,0,calltree,jit-on,5247000,5.2470
+no block-linking,256,0,calltree,jit-warm,4709000,4.7090
+no block-linking,256,0,countloop,interp,28087000,28.0870
+no block-linking,256,0,countloop,jit-on,4659000,4.6590
+no block-linking,256,0,countloop,jit-warm,4236000,4.2360
+no block-linking,256,0,nqueens,interp,23867000,23.8670
+no block-linking,256,0,nqueens,jit-on,3781000,3.7810
+no block-linking,256,0,nqueens,jit-warm,3064000,3.0640
+no block-linking,256,1,arith,interp,27478000,27.4780
+no block-linking,256,1,arith,jit-on,1982000,1.9820
+no block-linking,256,1,arith,jit-warm,1583000,1.5830
+no block-linking,256,1,memmix,interp,23303000,23.3030
+no block-linking,256,1,memmix,jit-on,4034000,4.0340
+no block-linking,256,1,memmix,jit-warm,3580000,3.5800
+no block-linking,256,1,calltree,interp,25197000,25.1970
+no block-linking,256,1,calltree,jit-on,5079000,5.0790
+no block-linking,256,1,calltree,jit-warm,4671000,4.6710
+no block-linking,256,1,countloop,interp,28429000,28.4290
+no block-linking,256,1,countloop,jit-on,4710000,4.7100
+no block-linking,256,1,countloop,jit-warm,4231000,4.2310
+no block-linking,256,1,nqueens,interp,23966000,23.9660
+no block-linking,256,1,nqueens,jit-on,3965000,3.9650
+no block-linking,256,1,nqueens,jit-warm,3277000,3.2770
+no inline arith,0.5,0,arith,interp,21820000,21.8200
+no inline arith,0.5,0,arith,jit-on,8076000,8.0760
+no inline arith,0.5,0,memmix,interp,19340000,19.3400
+no inline arith,0.5,0,memmix,jit-on,5170000,5.1700
+no inline arith,0.5,0,calltree,interp,20160000,20.1600
+no inline arith,0.5,0,calltree,jit-on,7759000,7.7590
+no inline arith,0.5,0,countloop,interp,22916000,22.9160
+no inline arith,0.5,0,countloop,jit-on,6183000,6.1830
+no inline arith,0.5,0,nqueens,interp,19030000,19.0300
+no inline arith,0.5,0,nqueens,jit-on,687522000,687.5220
+no inline arith,0.5,1,arith,interp,22023000,22.0230
+no inline arith,0.5,1,arith,jit-on,7934000,7.9340
+no inline arith,0.5,1,memmix,interp,19297000,19.2970
+no inline arith,0.5,1,memmix,jit-on,5057000,5.0570
+no inline arith,0.5,1,calltree,interp,20268000,20.2680
+no inline arith,0.5,1,calltree,jit-on,7856000,7.8560
+no inline arith,0.5,1,countloop,interp,23106000,23.1060
+no inline arith,0.5,1,countloop,jit-on,6183000,6.1830
+no inline arith,0.5,1,nqueens,interp,19204000,19.2040
+no inline arith,0.5,1,nqueens,jit-on,680681000,680.6810
+no inline arith,1,0,arith,interp,21950000,21.9500
+no inline arith,1,0,arith,jit-on,7944000,7.9440
+no inline arith,1,0,arith,jit-warm,7476000,7.4760
+no inline arith,1,0,memmix,interp,19117000,19.1170
+no inline arith,1,0,memmix,jit-on,5011000,5.0110
+no inline arith,1,0,memmix,jit-warm,4383000,4.3830
+no inline arith,1,0,calltree,interp,19575000,19.5750
+no inline arith,1,0,calltree,jit-on,7513000,7.5130
+no inline arith,1,0,calltree,jit-warm,6955000,6.9550
+no inline arith,1,0,countloop,interp,21825000,21.8250
+no inline arith,1,0,countloop,jit-on,6868000,6.8680
+no inline arith,1,0,countloop,jit-warm,6439000,6.4390
+no inline arith,1,0,nqueens,interp,18867000,18.8670
+no inline arith,1,0,nqueens,jit-on,649256000,649.2560
+no inline arith,1,1,arith,interp,21768000,21.7680
+no inline arith,1,1,arith,jit-on,7993000,7.9930
+no inline arith,1,1,arith,jit-warm,7426000,7.4260
+no inline arith,1,1,memmix,interp,19233000,19.2330
+no inline arith,1,1,memmix,jit-on,4916000,4.9160
+no inline arith,1,1,memmix,jit-warm,4360000,4.3600
+no inline arith,1,1,calltree,interp,19247000,19.2470
+no inline arith,1,1,calltree,jit-on,7596000,7.5960
+no inline arith,1,1,calltree,jit-warm,7089000,7.0890
+no inline arith,1,1,countloop,interp,22481000,22.4810
+no inline arith,1,1,countloop,jit-on,6807000,6.8070
+no inline arith,1,1,countloop,jit-warm,6471000,6.4710
+no inline arith,1,1,nqueens,interp,18348000,18.3480
+no inline arith,1,1,nqueens,jit-on,662490000,662.4900
+no inline arith,2,0,arith,interp,21693000,21.6930
+no inline arith,2,0,arith,jit-on,7906000,7.9060
+no inline arith,2,0,arith,jit-warm,7443000,7.4430
+no inline arith,2,0,memmix,interp,19173000,19.1730
+no inline arith,2,0,memmix,jit-on,4859000,4.8590
+no inline arith,2,0,memmix,jit-warm,4330000,4.3300
+no inline arith,2,0,calltree,interp,19327000,19.3270
+no inline arith,2,0,calltree,jit-on,7518000,7.5180
+no inline arith,2,0,calltree,jit-warm,7123000,7.1230
+no inline arith,2,0,countloop,interp,22077000,22.0770
+no inline arith,2,0,countloop,jit-on,6761000,6.7610
+no inline arith,2,0,countloop,jit-warm,6161000,6.1610
+no inline arith,2,0,nqueens,interp,18399000,18.3990
+no inline arith,2,0,nqueens,jit-on,4357000,4.3570
+no inline arith,2,0,nqueens,jit-warm,3385000,3.3850
+no inline arith,2,1,arith,interp,21921000,21.9210
+no inline arith,2,1,arith,jit-on,8173000,8.1730
+no inline arith,2,1,arith,jit-warm,7698000,7.6980
+no inline arith,2,1,memmix,interp,19441000,19.4410
+no inline arith,2,1,memmix,jit-on,5085000,5.0850
+no inline arith,2,1,memmix,jit-warm,4574000,4.5740
+no inline arith,2,1,calltree,interp,20072000,20.0720
+no inline arith,2,1,calltree,jit-on,7982000,7.9820
+no inline arith,2,1,calltree,jit-warm,7294000,7.2940
+no inline arith,2,1,countloop,interp,23273000,23.2730
+no inline arith,2,1,countloop,jit-on,7079000,7.0790
+no inline arith,2,1,countloop,jit-warm,6665000,6.6650
+no inline arith,2,1,nqueens,interp,18681000,18.6810
+no inline arith,2,1,nqueens,jit-on,4474000,4.4740
+no inline arith,2,1,nqueens,jit-warm,3605000,3.6050
+no inline arith,4,0,arith,interp,21733000,21.7330
+no inline arith,4,0,arith,jit-on,7933000,7.9330
+no inline arith,4,0,arith,jit-warm,7316000,7.3160
+no inline arith,4,0,memmix,interp,18522000,18.5220
+no inline arith,4,0,memmix,jit-on,4958000,4.9580
+no inline arith,4,0,memmix,jit-warm,4403000,4.4030
+no inline arith,4,0,calltree,interp,19225000,19.2250
+no inline arith,4,0,calltree,jit-on,7481000,7.4810
+no inline arith,4,0,calltree,jit-warm,7053000,7.0530
+no inline arith,4,0,countloop,interp,21819000,21.8190
+no inline arith,4,0,countloop,jit-on,6708000,6.7080
+no inline arith,4,0,countloop,jit-warm,6384000,6.3840
+no inline arith,4,0,nqueens,interp,18277000,18.2770
+no inline arith,4,0,nqueens,jit-on,4327000,4.3270
+no inline arith,4,0,nqueens,jit-warm,3427000,3.4270
+no inline arith,4,1,arith,interp,22648000,22.6480
+no inline arith,4,1,arith,jit-on,8462000,8.4620
+no inline arith,4,1,arith,jit-warm,7565000,7.5650
+no inline arith,4,1,memmix,interp,19445000,19.4450
+no inline arith,4,1,memmix,jit-on,4951000,4.9510
+no inline arith,4,1,memmix,jit-warm,4407000,4.4070
+no inline arith,4,1,calltree,interp,18819000,18.8190
+no inline arith,4,1,calltree,jit-on,7501000,7.5010
+no inline arith,4,1,calltree,jit-warm,7047000,7.0470
+no inline arith,4,1,countloop,interp,22069000,22.0690
+no inline arith,4,1,countloop,jit-on,6787000,6.7870
+no inline arith,4,1,countloop,jit-warm,6352000,6.3520
+no inline arith,4,1,nqueens,interp,18379000,18.3790
+no inline arith,4,1,nqueens,jit-on,4362000,4.3620
+no inline arith,4,1,nqueens,jit-warm,3403000,3.4030
+no inline arith,8,0,arith,interp,21967000,21.9670
+no inline arith,8,0,arith,jit-on,8158000,8.1580
+no inline arith,8,0,arith,jit-warm,7708000,7.7080
+no inline arith,8,0,memmix,interp,18423000,18.4230
+no inline arith,8,0,memmix,jit-on,5095000,5.0950
+no inline arith,8,0,memmix,jit-warm,4549000,4.5490
+no inline arith,8,0,calltree,interp,19883000,19.8830
+no inline arith,8,0,calltree,jit-on,7789000,7.7890
+no inline arith,8,0,calltree,jit-warm,7267000,7.2670
+no inline arith,8,0,countloop,interp,22975000,22.9750
+no inline arith,8,0,countloop,jit-on,6947000,6.9470
+no inline arith,8,0,countloop,jit-warm,6538000,6.5380
+no inline arith,8,0,nqueens,interp,18498000,18.4980
+no inline arith,8,0,nqueens,jit-on,4428000,4.4280
+no inline arith,8,0,nqueens,jit-warm,3531000,3.5310
+no inline arith,8,1,arith,interp,21931000,21.9310
+no inline arith,8,1,arith,jit-on,8174000,8.1740
+no inline arith,8,1,arith,jit-warm,7664000,7.6640
+no inline arith,8,1,memmix,interp,18738000,18.7380
+no inline arith,8,1,memmix,jit-on,5066000,5.0660
+no inline arith,8,1,memmix,jit-warm,4485000,4.4850
+no inline arith,8,1,calltree,interp,19987000,19.9870
+no inline arith,8,1,calltree,jit-on,7757000,7.7570
+no inline arith,8,1,calltree,jit-warm,7263000,7.2630
+no inline arith,8,1,countloop,interp,22887000,22.8870
+no inline arith,8,1,countloop,jit-on,6865000,6.8650
+no inline arith,8,1,countloop,jit-warm,6382000,6.3820
+no inline arith,8,1,nqueens,interp,18734000,18.7340
+no inline arith,8,1,nqueens,jit-on,4448000,4.4480
+no inline arith,8,1,nqueens,jit-warm,3581000,3.5810
+no inline arith,16,0,arith,interp,22348000,22.3480
+no inline arith,16,0,arith,jit-on,8148000,8.1480
+no inline arith,16,0,arith,jit-warm,7629000,7.6290
+no inline arith,16,0,memmix,interp,19643000,19.6430
+no inline arith,16,0,memmix,jit-on,5109000,5.1090
+no inline arith,16,0,memmix,jit-warm,4600000,4.6000
+no inline arith,16,0,calltree,interp,19649000,19.6490
+no inline arith,16,0,calltree,jit-on,7914000,7.9140
+no inline arith,16,0,calltree,jit-warm,7392000,7.3920
+no inline arith,16,0,countloop,interp,22821000,22.8210
+no inline arith,16,0,countloop,jit-on,7062000,7.0620
+no inline arith,16,0,countloop,jit-warm,6612000,6.6120
+no inline arith,16,0,nqueens,interp,19107000,19.1070
+no inline arith,16,0,nqueens,jit-on,4436000,4.4360
+no inline arith,16,0,nqueens,jit-warm,3634000,3.6340
+no inline arith,16,1,arith,interp,21845000,21.8450
+no inline arith,16,1,arith,jit-on,7974000,7.9740
+no inline arith,16,1,arith,jit-warm,7435000,7.4350
+no inline arith,16,1,memmix,interp,18829000,18.8290
+no inline arith,16,1,memmix,jit-on,4877000,4.8770
+no inline arith,16,1,memmix,jit-warm,4332000,4.3320
+no inline arith,16,1,calltree,interp,18969000,18.9690
+no inline arith,16,1,calltree,jit-on,7551000,7.5510
+no inline arith,16,1,calltree,jit-warm,7160000,7.1600
+no inline arith,16,1,countloop,interp,21871000,21.8710
+no inline arith,16,1,countloop,jit-on,6702000,6.7020
+no inline arith,16,1,countloop,jit-warm,6217000,6.2170
+no inline arith,16,1,nqueens,interp,18418000,18.4180
+no inline arith,16,1,nqueens,jit-on,4274000,4.2740
+no inline arith,16,1,nqueens,jit-warm,3407000,3.4070
+no inline arith,32,0,arith,interp,21475000,21.4750
+no inline arith,32,0,arith,jit-on,8232000,8.2320
+no inline arith,32,0,arith,jit-warm,7770000,7.7700
+no inline arith,32,0,memmix,interp,18666000,18.6660
+no inline arith,32,0,memmix,jit-on,5174000,5.1740
+no inline arith,32,0,memmix,jit-warm,4584000,4.5840
+no inline arith,32,0,calltree,interp,19770000,19.7700
+no inline arith,32,0,calltree,jit-on,7815000,7.8150
+no inline arith,32,0,calltree,jit-warm,7369000,7.3690
+no inline arith,32,0,countloop,interp,23133000,23.1330
+no inline arith,32,0,countloop,jit-on,7016000,7.0160
+no inline arith,32,0,countloop,jit-warm,6576000,6.5760
+no inline arith,32,0,nqueens,interp,18789000,18.7890
+no inline arith,32,0,nqueens,jit-on,4599000,4.5990
+no inline arith,32,0,nqueens,jit-warm,3652000,3.6520
+no inline arith,32,1,arith,interp,21940000,21.9400
+no inline arith,32,1,arith,jit-on,8199000,8.1990
+no inline arith,32,1,arith,jit-warm,7809000,7.8090
+no inline arith,32,1,memmix,interp,19127000,19.1270
+no inline arith,32,1,memmix,jit-on,5111000,5.1110
+no inline arith,32,1,memmix,jit-warm,4481000,4.4810
+no inline arith,32,1,calltree,interp,19939000,19.9390
+no inline arith,32,1,calltree,jit-on,7739000,7.7390
+no inline arith,32,1,calltree,jit-warm,7367000,7.3670
+no inline arith,32,1,countloop,interp,22858000,22.8580
+no inline arith,32,1,countloop,jit-on,7009000,7.0090
+no inline arith,32,1,countloop,jit-warm,6555000,6.5550
+no inline arith,32,1,nqueens,interp,18618000,18.6180
+no inline arith,32,1,nqueens,jit-on,4411000,4.4110
+no inline arith,32,1,nqueens,jit-warm,3544000,3.5440
+no inline arith,64,0,arith,interp,21804000,21.8040
+no inline arith,64,0,arith,jit-on,7899000,7.8990
+no inline arith,64,0,arith,jit-warm,7353000,7.3530
+no inline arith,64,0,memmix,interp,18007000,18.0070
+no inline arith,64,0,memmix,jit-on,4847000,4.8470
+no inline arith,64,0,memmix,jit-warm,4367000,4.3670
+no inline arith,64,0,calltree,interp,18949000,18.9490
+no inline arith,64,0,calltree,jit-on,7359000,7.3590
+no inline arith,64,0,calltree,jit-warm,6926000,6.9260
+no inline arith,64,0,countloop,interp,21563000,21.5630
+no inline arith,64,0,countloop,jit-on,6542000,6.5420
+no inline arith,64,0,countloop,jit-warm,6252000,6.2520
+no inline arith,64,0,nqueens,interp,18381000,18.3810
+no inline arith,64,0,nqueens,jit-on,4276000,4.2760
+no inline arith,64,0,nqueens,jit-warm,3403000,3.4030
+no inline arith,64,1,arith,interp,21876000,21.8760
+no inline arith,64,1,arith,jit-on,8048000,8.0480
+no inline arith,64,1,arith,jit-warm,7394000,7.3940
+no inline arith,64,1,memmix,interp,17910000,17.9100
+no inline arith,64,1,memmix,jit-on,4948000,4.9480
+no inline arith,64,1,memmix,jit-warm,4363000,4.3630
+no inline arith,64,1,calltree,interp,19681000,19.6810
+no inline arith,64,1,calltree,jit-on,7510000,7.5100
+no inline arith,64,1,calltree,jit-warm,7051000,7.0510
+no inline arith,64,1,countloop,interp,22101000,22.1010
+no inline arith,64,1,countloop,jit-on,6686000,6.6860
+no inline arith,64,1,countloop,jit-warm,6287000,6.2870
+no inline arith,64,1,nqueens,interp,18452000,18.4520
+no inline arith,64,1,nqueens,jit-on,4384000,4.3840
+no inline arith,64,1,nqueens,jit-warm,3424000,3.4240
+no inline arith,96,0,arith,interp,21965000,21.9650
+no inline arith,96,0,arith,jit-on,8106000,8.1060
+no inline arith,96,0,arith,jit-warm,7573000,7.5730
+no inline arith,96,0,memmix,interp,19102000,19.1020
+no inline arith,96,0,memmix,jit-on,5071000,5.0710
+no inline arith,96,0,memmix,jit-warm,4597000,4.5970
+no inline arith,96,0,calltree,interp,19722000,19.7220
+no inline arith,96,0,calltree,jit-on,7722000,7.7220
+no inline arith,96,0,calltree,jit-warm,7197000,7.1970
+no inline arith,96,0,countloop,interp,22878000,22.8780
+no inline arith,96,0,countloop,jit-on,6945000,6.9450
+no inline arith,96,0,countloop,jit-warm,6599000,6.5990
+no inline arith,96,0,nqueens,interp,18879000,18.8790
+no inline arith,96,0,nqueens,jit-on,4504000,4.5040
+no inline arith,96,0,nqueens,jit-warm,3593000,3.5930
+no inline arith,96,1,arith,interp,21865000,21.8650
+no inline arith,96,1,arith,jit-on,7998000,7.9980
+no inline arith,96,1,arith,jit-warm,7420000,7.4200
+no inline arith,96,1,memmix,interp,18739000,18.7390
+no inline arith,96,1,memmix,jit-on,4843000,4.8430
+no inline arith,96,1,memmix,jit-warm,4393000,4.3930
+no inline arith,96,1,calltree,interp,19138000,19.1380
+no inline arith,96,1,calltree,jit-on,7481000,7.4810
+no inline arith,96,1,calltree,jit-warm,7039000,7.0390
+no inline arith,96,1,countloop,interp,21935000,21.9350
+no inline arith,96,1,countloop,jit-on,6736000,6.7360
+no inline arith,96,1,countloop,jit-warm,6496000,6.4960
+no inline arith,96,1,nqueens,interp,18202000,18.2020
+no inline arith,96,1,nqueens,jit-on,4325000,4.3250
+no inline arith,96,1,nqueens,jit-warm,3404000,3.4040
+no inline arith,128,0,arith,interp,21787000,21.7870
+no inline arith,128,0,arith,jit-on,8052000,8.0520
+no inline arith,128,0,arith,jit-warm,7547000,7.5470
+no inline arith,128,0,memmix,interp,19152000,19.1520
+no inline arith,128,0,memmix,jit-on,4895000,4.8950
+no inline arith,128,0,memmix,jit-warm,4451000,4.4510
+no inline arith,128,0,calltree,interp,19217000,19.2170
+no inline arith,128,0,calltree,jit-on,7808000,7.8080
+no inline arith,128,0,calltree,jit-warm,7264000,7.2640
+no inline arith,128,0,countloop,interp,22638000,22.6380
+no inline arith,128,0,countloop,jit-on,6913000,6.9130
+no inline arith,128,0,countloop,jit-warm,6436000,6.4360
+no inline arith,128,0,nqueens,interp,18327000,18.3270
+no inline arith,128,0,nqueens,jit-on,4343000,4.3430
+no inline arith,128,0,nqueens,jit-warm,3469000,3.4690
+no inline arith,128,1,arith,interp,22108000,22.1080
+no inline arith,128,1,arith,jit-on,8037000,8.0370
+no inline arith,128,1,arith,jit-warm,7493000,7.4930
+no inline arith,128,1,memmix,interp,19387000,19.3870
+no inline arith,128,1,memmix,jit-on,5032000,5.0320
+no inline arith,128,1,memmix,jit-warm,4497000,4.4970
+no inline arith,128,1,calltree,interp,19216000,19.2160
+no inline arith,128,1,calltree,jit-on,7547000,7.5470
+no inline arith,128,1,calltree,jit-warm,7103000,7.1030
+no inline arith,128,1,countloop,interp,22301000,22.3010
+no inline arith,128,1,countloop,jit-on,6801000,6.8010
+no inline arith,128,1,countloop,jit-warm,6491000,6.4910
+no inline arith,128,1,nqueens,interp,18639000,18.6390
+no inline arith,128,1,nqueens,jit-on,4468000,4.4680
+no inline arith,128,1,nqueens,jit-warm,3506000,3.5060
+no inline arith,192,0,arith,interp,22179000,22.1790
+no inline arith,192,0,arith,jit-on,8244000,8.2440
+no inline arith,192,0,arith,jit-warm,7668000,7.6680
+no inline arith,192,0,memmix,interp,19120000,19.1200
+no inline arith,192,0,memmix,jit-on,5104000,5.1040
+no inline arith,192,0,memmix,jit-warm,4605000,4.6050
+no inline arith,192,0,calltree,interp,19950000,19.9500
+no inline arith,192,0,calltree,jit-on,7780000,7.7800
+no inline arith,192,0,calltree,jit-warm,7309000,7.3090
+no inline arith,192,0,countloop,interp,23046000,23.0460
+no inline arith,192,0,countloop,jit-on,6910000,6.9100
+no inline arith,192,0,countloop,jit-warm,6516000,6.5160
+no inline arith,192,0,nqueens,interp,19094000,19.0940
+no inline arith,192,0,nqueens,jit-on,4419000,4.4190
+no inline arith,192,0,nqueens,jit-warm,3566000,3.5660
+no inline arith,192,1,arith,interp,21894000,21.8940
+no inline arith,192,1,arith,jit-on,8308000,8.3080
+no inline arith,192,1,arith,jit-warm,7595000,7.5950
+no inline arith,192,1,memmix,interp,19751000,19.7510
+no inline arith,192,1,memmix,jit-on,5033000,5.0330
+no inline arith,192,1,memmix,jit-warm,4515000,4.5150
+no inline arith,192,1,calltree,interp,20411000,20.4110
+no inline arith,192,1,calltree,jit-on,7778000,7.7780
+no inline arith,192,1,calltree,jit-warm,7399000,7.3990
+no inline arith,192,1,countloop,interp,23561000,23.5610
+no inline arith,192,1,countloop,jit-on,7034000,7.0340
+no inline arith,192,1,countloop,jit-warm,6599000,6.5990
+no inline arith,192,1,nqueens,interp,18674000,18.6740
+no inline arith,192,1,nqueens,jit-on,4457000,4.4570
+no inline arith,192,1,nqueens,jit-warm,3594000,3.5940
+no inline arith,256,0,arith,interp,21546000,21.5460
+no inline arith,256,0,arith,jit-on,8220000,8.2200
+no inline arith,256,0,arith,jit-warm,7608000,7.6080
+no inline arith,256,0,memmix,interp,19053000,19.0530
+no inline arith,256,0,memmix,jit-on,4931000,4.9310
+no inline arith,256,0,memmix,jit-warm,4356000,4.3560
+no inline arith,256,0,calltree,interp,19246000,19.2460
+no inline arith,256,0,calltree,jit-on,7471000,7.4710
+no inline arith,256,0,calltree,jit-warm,7021000,7.0210
+no inline arith,256,0,countloop,interp,21839000,21.8390
+no inline arith,256,0,countloop,jit-on,6685000,6.6850
+no inline arith,256,0,countloop,jit-warm,6294000,6.2940
+no inline arith,256,0,nqueens,interp,18585000,18.5850
+no inline arith,256,0,nqueens,jit-on,4342000,4.3420
+no inline arith,256,0,nqueens,jit-warm,3471000,3.4710
+no inline arith,256,1,arith,interp,21973000,21.9730
+no inline arith,256,1,arith,jit-on,7954000,7.9540
+no inline arith,256,1,arith,jit-warm,7345000,7.3450
+no inline arith,256,1,memmix,interp,18515000,18.5150
+no inline arith,256,1,memmix,jit-on,4961000,4.9610
+no inline arith,256,1,memmix,jit-warm,4490000,4.4900
+no inline arith,256,1,calltree,interp,19275000,19.2750
+no inline arith,256,1,calltree,jit-on,7454000,7.4540
+no inline arith,256,1,calltree,jit-warm,6959000,6.9590
+no inline arith,256,1,countloop,interp,22254000,22.2540
+no inline arith,256,1,countloop,jit-on,6680000,6.6800
+no inline arith,256,1,countloop,jit-warm,6284000,6.2840
+no inline arith,256,1,nqueens,interp,18901000,18.9010
+no inline arith,256,1,nqueens,jit-on,4359000,4.3590
+no inline arith,256,1,nqueens,jit-warm,3483000,3.4830

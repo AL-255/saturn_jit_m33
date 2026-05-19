@@ -25,6 +25,12 @@ QEMU is pinned to Apple-Silicon P-cores via `taskpolicy -t 0 -l 0`.
 
 ![JIT throughput vs. code-cache size, by configuration](bench_jit_cache_sweep.png)
 
+The same chart, narrowed to the nqueens workload only — Saturn's
+P-field-heavy backtracking solver is the hardest workload for the
+JIT and so the most informative single curve:
+
+![JIT throughput on the nqueens workload, by configuration](bench_jit_cache_sweep_nqueens.png)
+
 ### Configurations
 
 | Curve | Compile-time flags flipped off | What it shows |
@@ -37,13 +43,25 @@ QEMU is pinned to Apple-Silicon P-cores via `taskpolicy -t 0 -l 0`.
 
 ### Plateau values (256 KiB cache)
 
-| Curve | Total time, four workloads | Speedup vs. interp |
+Five-workload aggregate:
+
+| Curve | Total time | Speedup vs. interp |
 | --- | --- | --- |
-| JIT warm — default | 6.0 ms | **12.4×** |
-| JIT cold — default | 8.2 ms | 9.0× |
-| JIT cold — no block-linking | 15.9 ms | 4.7× |
-| JIT cold — no inline arith | 27.8 ms | 2.7× |
-| Interpreter (host -O3) | 74 ms | 1.0× |
+| JIT warm — default | 8.6 ms | **11.5×** |
+| JIT cold — default | 11.8 ms | 8.5× |
+| JIT cold — no block-linking | 19.8 ms | 5.0× |
+| JIT cold — no inline arith | 31.4 ms | 3.2× |
+| Interpreter (host -O3) | 99 ms | 1.0× |
+
+nqueens only:
+
+| Curve | Time | Speedup vs. interp |
+| --- | --- | --- |
+| JIT warm — default | 2.6 ms | **7.0×** |
+| JIT cold — default | 3.5 ms | 5.2× |
+| JIT cold — no block-linking | 3.9 ms | 4.7× |
+| JIT cold — no inline arith | 4.4 ms | 4.1× |
+| Interpreter (host -O3) | 18.2 ms | 1.0× |
 
 A few takeaways:
 
