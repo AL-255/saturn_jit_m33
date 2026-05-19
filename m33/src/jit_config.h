@@ -305,6 +305,16 @@
 #define JIT_OPT_RTN_IC_2WAY 1
 #endif
 
+/* Defer `movw r0, #next_pc` past the chain BGE in self-loop blocks.
+ * The BGE-taken path goes straight to body (which doesn't read r0);
+ * only the BGE-not-taken fallthrough to local_exit needs r0 for the
+ * dispatcher's return value. Saves one 4-byte MOVW per chained iter
+ * in tight self-loops (arith / memmix / countloop body blocks). Only
+ * applies when JIT_OPT_SELF_LOOP_DIRECT_BRANCH is also on. */
+#ifndef JIT_OPT_LAZY_EXIT_PC
+#define JIT_OPT_LAZY_EXIT_PC 1
+#endif
+
 /* Update saturn.saturn_ops in the C dispatcher (from the budget delta
  * between entry and return) rather than emitting an ldr/add/str triplet
  * in every block tail. The JIT only updates saturn.budget_remaining.

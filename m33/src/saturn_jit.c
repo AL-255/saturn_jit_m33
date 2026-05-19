@@ -2617,28 +2617,40 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                 emit_str_imm(&e, 0, 4, OFS(saturn_ops));
             }
 #endif
-            emit_mov_imm32(&e, 0, next_pc & 0xFFFFFu);
-            if (ops != 0) {
-                emit_ldr_imm(&e, 1, 4, OFS(budget_remaining));
-                if (ops <= 0xff) {
-                    emit_subs_lo_imm8(&e, 1, (uint8_t)ops);
-                } else if (ops <= 0xfff) {
-                    emit_sub_imm_t3_small(&e, 1, 1, (uint16_t)ops);
-                } else {
-                    emit_mov_imm32(&e, 2, ops);
-                    uint32_t hi = 0xEBB0 | 1;
-                    uint32_t lo = (0 << 12) | (1 << 8) | 2;
-                    emit_w32(&e, (hi << 16) | lo);
-                }
-                emit_str_imm(&e, 1, 4, OFS(budget_remaining));
-            }
             {
 #if JIT_OPT_SELF_LOOP_DIRECT_BRANCH
                 bool self_loop = (next_pc == start_pc);
 #else
                 bool self_loop = false;
 #endif
+                /* movw r0, #next_pc is only needed on the local-exit
+                 * path (pop {r4, pc} returns r0 to the dispatcher) and
+                 * on the cross-chain path when the chain target is the
+                 * dispatcher_return_stub (cold link). For self-loop
+                 * chains the BGE-taken path goes straight to body and
+                 * doesn't read r0, so JIT_OPT_LAZY_EXIT_PC can defer
+                 * the movw to the local_exit fall-through, saving one
+                 * 4-byte instruction per chained iteration. */
+#if !JIT_OPT_LAZY_EXIT_PC
+                emit_mov_imm32(&e, 0, next_pc & 0xFFFFFu);
+#else
+                if (!self_loop) {
+                    emit_mov_imm32(&e, 0, next_pc & 0xFFFFFu);
+                }
+#endif
                 if (ops != 0) {
+                    emit_ldr_imm(&e, 1, 4, OFS(budget_remaining));
+                    if (ops <= 0xff) {
+                        emit_subs_lo_imm8(&e, 1, (uint8_t)ops);
+                    } else if (ops <= 0xfff) {
+                        emit_sub_imm_t3_small(&e, 1, 1, (uint16_t)ops);
+                    } else {
+                        emit_mov_imm32(&e, 2, ops);
+                        uint32_t hi = 0xEBB0 | 1;
+                        uint32_t lo = (0 << 12) | (1 << 8) | 2;
+                        emit_w32(&e, (hi << 16) | lo);
+                    }
+                    emit_str_imm(&e, 1, 4, OFS(budget_remaining));
                     if (ops > 0xff && ops <= 0xfff) {
                         emit_cmp_imm_t2(&e, 1, 0);
                     }
@@ -2649,6 +2661,9 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                         uint32_t b = emit_b_w_placeholder(&e, 0xA); /* GE */
                         emit_patch_b_w(&e, b, body_off_hw);
                         /* Falls through to local_exit on BGE-not-taken. */
+#if JIT_OPT_LAZY_EXIT_PC
+                        emit_mov_imm32(&e, 0, next_pc & 0xFFFFFu);
+#endif
                     } else {
                         /* Cross-chain: BLT to local_exit, then indirect
                          * (later patched to direct B.W). */
