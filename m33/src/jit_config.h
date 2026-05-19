@@ -67,6 +67,14 @@
 #define JIT_OPT_FLAT_CARRY 1
 #endif
 
+/* Use the T1 `MOVS Rd, #imm8` (2 bytes) form for block-exit PC setup
+ * when the next PC fits in 8 bits. Saves 2 bytes per block-exit vs T3
+ * MOVW (4 bytes). Helps tight loops where the loop_top PC is small
+ * (arith loop_top=0x13, memmix loop_top=0x16, countloop=0xE/0x17). */
+#ifndef JIT_OPT_NARROW_EXIT_MOV
+#define JIT_OPT_NARROW_EXIT_MOV 1
+#endif
+
 /* Inline group-3 LC (load constant into C[P..P+n]) for small n.
  * Currently every LC goes through jit_lc_copy helper. For n ≤ 4 we
  * can emit a small inline sequence using STRB register-offset.
@@ -118,25 +126,26 @@
 #define JIT_OPT_INLINE_ZEROTEST 1
 #endif
 
-/* Inline 5-nibble DAT load/store (group 14x W-field) with bounds check.
+/* Inline 5-nibble DAT load/store (group 14x W-field). Skips the
+ * jit_dat_load_w / jit_dat_store_w helper call by computing
+ * &ram[d - ram_base] inline and transferring 4 + 1 nibbles.
  *
- * **STILL DEFAULT OFF** — even with the bounds-check fallback added,
- * the JIT-on path produces a stuck 38-byte block at PC=0 that loops
- * 200k times, while jit-off translates correctly (33k blocks of
- * ~336 bytes each, full br_taken count). The standalone translate
- * call from bench_main produces 432 bytes (correct) — only the
- * dispatcher's translation path differs. Root cause not yet found.
+ * Bounds-checked at runtime: compare offset (d - ram_base) against
+ * (ram_size - 4), branch to helper fallback when the 5-byte window
+ * would straddle the RAM boundary. The -4 is critical: the inline
+ * fast path writes 5 bytes starting at offset, so we need
+ *     offset + 5 <= ram_size  ⇔  offset <= ram_size - 5
+ *     ⇔  offset < ram_size - 4    (BHS branches on offset >= ram_size-4)
  *
- * Investigation:
- *   - Encoding verified vs arm-as (cmp r2,r3 = 0x429A, b.w hs cond=2 ok).
- *   - Cross-check at budget=200 passes (too few iters to hit OOB).
- *   - jit-off path: same translation, runs correctly.
- *   - jit-on output: blocks=1, bytes=38, hits=199999, br_taken=0.
- *   - Hypothesis (unverified): something about cache_insert + subsequent
- *     translation interactions. Maybe ops/code_hw wraps or struct
- *     alignment changes when memmix block grows past some threshold. */
+ * Earlier versions used the wrong condition (offset < ram_size) which
+ * silently corrupted memory past ram_base+ram_size — specifically the
+ * adjacent g_rom_buf in BSS, leading to mysterious jit-on translation
+ * failures (translator reads zeros from g_rom_buf[0] and emits a tiny
+ * RTNSXM block). The off-by-4 took two iterations to find.
+ *
+ * Helps memmix: 5.04 → 4.56 ms (-9.5%), 3.77× → 4.23× vs interp. */
 #ifndef JIT_OPT_INLINE_DAT
-#define JIT_OPT_INLINE_DAT 0
+#define JIT_OPT_INLINE_DAT 1
 #endif
 
 /* Move the saturn_ops += block_ops counter bump from JIT-emitted code

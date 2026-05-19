@@ -87,7 +87,16 @@ static inline uint32_t fetch_k(addr_t a, int k) { return sat_fetch_field(a, k); 
 
 /* Emit: r0 = <imm32 next PC> ; pop {r4, pc} */
 static void emit_block_exit_with_pc(emit_ctx_t *e, addr_t pc) {
-    emit_mov_imm32(e, 0, pc & 0xFFFFFu);
+    uint32_t pc20 = pc & 0xFFFFFu;
+#if JIT_OPT_NARROW_EXIT_MOV
+    if (pc20 <= 0xff) {
+        emit_mov_lo_imm8(e, 0, (uint8_t)pc20);   /* movs r0, #imm8 (2 bytes T2) */
+    } else {
+        emit_mov_imm32(e, 0, pc20);
+    }
+#else
+    emit_mov_imm32(e, 0, pc20);
+#endif
     /* pop {r4, pc} : encoding 1011 110 P reglist8, P=1 → include PC,
      * reglist bit 4 = r4. So 0xBC00 | 0x100 | 0x10 = 0xBD10. */
     emit_hw(e, 0xBD10);
@@ -969,11 +978,11 @@ static block_step_t translate_group_1(emit_ctx_t *e, addr_t pc, uint32_t *consum
                 emit_w32(e, (hi << 16) | lo);     /* sub.w r2, r0, r2 */
             }
             emit_ldr_imm(e, 3, 4, OFS(ram_size));
-            /* cmp r2, r3 — T2 reg compare: 0100 0010 10 Rm Rn (low regs);
-             * or for r2/r3 (both low): 0x4293 (cmp r3, r2 reversed)
-             * Actually CMP reg T1: 0100 0010 10 Rm Rn — for cmp r2, r3:
-             * Rn=2, Rm=3. Encoding: 0x4280 | (Rm << 3) | Rn = 0x4280 | 24 | 2 = 0x429A
-             * Let me verify: 01000010 10|01|10|10 = 0x429A. Hmm bit pattern doesn't look right. */
+            /* The 5-nibble write spans offset..offset+4. To stay in
+             * bounds, offset+5 must be ≤ ram_size, i.e. offset must
+             * be < ram_size - 4. Subtract 4 from r3 (ram_size) so the
+             * CMP+BHS check becomes "branch if offset >= ram_size-4". */
+            emit_subs_lo_imm8(e, 3, 4);                      /* subs r3, r3, #4 */
             emit_hw(e, 0x4200 | (1 << 7) | (3 << 3) | 2);  /* cmp r2, r3 T1 */
             uint32_t br_fallback = emit_b_w_placeholder(e, 0x2);   /* cond HS = 0x2 */
             /* Fast path */
