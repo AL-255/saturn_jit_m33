@@ -70,7 +70,10 @@ static const char *mode_name(mode_t m) {
 }
 
 static interp_status_t run_mode(mode_t m, uint64_t budget) {
-    const uint64_t kbd_period = 4096;
+    /* Larger chunks reduce the outer-loop / kbd_step overhead per
+     * benchmark; the JIT chain itself self-limits via saturn.budget_remaining
+     * so going bigger doesn't increase chain runaway. */
+    const uint64_t kbd_period = 65536;
     uint64_t remaining = budget;
     interp_status_t st = INTERP_OK_BUDGET;
     if (m == MODE_JIT_OFF) jit_reset(JIT_CACHE_OFF);

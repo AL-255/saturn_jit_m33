@@ -321,21 +321,6 @@ interp_status_t jit_run(uint64_t budget) {
             }
         }
 
-#if JIT_OPT_BLOCK_LINK && JIT_OPT_RTN_INLINE_CACHE
-        /* If the previous fn was a dyn_end block, fill its IC with the
-         * (pc, body) pair we just resolved. Stable across iterations for
-         * monomorphic call sites. */
-        if (s_prev_dyn_slot >= 0 && found_slot >= 0
-            && s_links[found_slot].body_off != 0) {
-            uintptr_t body = (uintptr_t)(s_code_buf
-                                         + (uint32_t)s_links[found_slot].body_off * 2)
-                             | 1u;
-            s_links[s_prev_dyn_slot].ic_ret_pc   = pc;
-            s_links[s_prev_dyn_slot].ic_ret_body = body;
-        }
-        s_prev_dyn_slot = -1;
-#endif
-
         if (!fn) {
             if (s_code_pos + 256 > s_code_cap) {
                 if (s_mode == JIT_CACHE_ON) cache_flush();
@@ -377,6 +362,7 @@ interp_status_t jit_run(uint64_t budget) {
                                    (uint16_t)(meta.body_off_hw),
                                    (uint16_t)(meta.chain_insn_hw),
                                    block_ops, meta.static_next_pc);
+                    found_slot = slot;
                 }
 #else
                 int slot2 = cache_insert(pc, (uint16_t)(s_code_pos / 2),
@@ -386,6 +372,23 @@ interp_status_t jit_run(uint64_t budget) {
                 s_code_pos += used;
             }
         }
+
+#if JIT_OPT_BLOCK_LINK && JIT_OPT_RTN_INLINE_CACHE
+        /* If the previous fn was a dyn_end block, fill its IC now that
+         * we've resolved (possibly translated) the body for its return
+         * PC. fn is the entry-point pointer (with prologue) — but the
+         * IC chains by entering at body_off (skipping prologue), so use
+         * found_slot's body_off when available. */
+        if (s_prev_dyn_slot >= 0 && found_slot >= 0
+            && s_links[found_slot].body_off != 0) {
+            uintptr_t body = (uintptr_t)(s_code_buf
+                                         + (uint32_t)s_links[found_slot].body_off * 2)
+                             | 1u;
+            s_links[s_prev_dyn_slot].ic_ret_pc   = pc;
+            s_links[s_prev_dyn_slot].ic_ret_body = body;
+        }
+        s_prev_dyn_slot = -1;
+#endif
 
 #if JIT_OPT_BLOCK_LINK
         /* In linked mode the block may chain across many compiled
