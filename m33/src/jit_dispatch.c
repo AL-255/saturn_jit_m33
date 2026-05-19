@@ -58,7 +58,11 @@ typedef struct cache_entry_s {
 #if JIT_OPT_BLOCK_LINK
 typedef struct cache_link_meta_s {
     uint32_t  next_pc;          /* statically-known next PC, or DYN_NEXT_PC */
-    uint16_t  body_off;         /* halfword offset where body starts */
+    uint16_t  body_off;         /* halfword offset where body starts (global) */
+    uint16_t  chain_insn_off;   /* halfword offset of the patchable cross-chain
+                                 * instruction sequence — first halfword of
+                                 * `movw r2, ...`. 0 = no cross-chain to
+                                 * patch (self-loop direct branch or dyn_end). */
     uintptr_t link_target;      /* patchable: next-block body|1 or stub */
 } cache_link_meta_t;
 static cache_link_meta_t s_links[CACHE_SLOTS];
@@ -70,6 +74,35 @@ static uint32_t      s_code_cap;
 static uint32_t      s_code_pos;
 static jit_mode_t    s_mode = JIT_CACHE_OFF;
 static jit_stats_t   s_stats;
+
+#if JIT_OPT_BLOCK_LINK && JIT_OPT_PATCH_CROSS_CHAIN
+/* Overwrite a 4-byte indirect-chain prefix with a direct T4 B.W to
+ * target_hw. Both arguments are global halfword indices in s_code_buf.
+ * Caller must ensure chain_hw != 0 (i.e. a chain insn was actually
+ * recorded for the slot). */
+static void patch_chain_to_b_w(uint16_t chain_hw, uint16_t target_hw) {
+    /* ARM-M PC at the branch insn = chain_addr + 4 bytes; imm32 is the
+     * signed byte offset from that PC. (target_hw - chain_hw - 2) * 2. */
+    int32_t off_hw = (int32_t)target_hw - (int32_t)chain_hw - 2;
+    int32_t i32    = off_hw * 2;
+    uint32_t s     = (i32 >> 24) & 1;
+    uint32_t imm11 = (i32 >> 1) & 0x7FF;
+    uint32_t imm10 = (i32 >> 12) & 0x3FF;
+    uint32_t i1    = (i32 >> 23) & 1;
+    uint32_t i2    = (i32 >> 22) & 1;
+    uint32_t j1    = (~(i1 ^ s)) & 1;
+    uint32_t j2    = (~(i2 ^ s)) & 1;
+    uint16_t hi = 0xF000 | (s << 10) | imm10;
+    uint16_t lo = 0x9000 | (j1 << 13) | (1 << 12) | (j2 << 11) | imm11;
+    uint16_t *buf16 = (uint16_t *)s_code_buf;
+    buf16[chain_hw]     = hi;
+    buf16[chain_hw + 1] = lo;
+    /* No DSB/ISB needed under QEMU TCG; for real M33 hardware the dispatch
+     * loop already executes a function call (which is a fence) before the
+     * patched block can be re-entered, so the prefetch buffer is naturally
+     * flushed. */
+}
+#endif
 
 /* dispatcher_return_stub: tail-called by chained block exit when
  * budget hasn't expired but the link target is the stub (i.e. no
@@ -120,6 +153,7 @@ static void reset_slots(void) {
         s_links[i].link_target = stub_addr_thumb();
         s_links[i].next_pc = DYN_NEXT_PC;
         s_links[i].body_off = 0;
+        s_links[i].chain_insn_off = 0;
 #endif
     }
 }
@@ -168,6 +202,7 @@ static int cache_reserve(uint32_t pc) {
             s_table[idx].ops = 0;
             s_links[idx].next_pc = DYN_NEXT_PC;
             s_links[idx].body_off = 0;
+            s_links[idx].chain_insn_off = 0;
             s_links[idx].link_target = stub_addr_thumb();
             return idx;
         }
@@ -178,12 +213,25 @@ static int cache_reserve(uint32_t pc) {
 
 /* Patch every cache entry whose next_pc matches `pc` so that its
  * link_target points at `target` (= newly-installed block's body with
- * Thumb LSB set). */
+ * Thumb LSB set). When PATCH_CROSS_CHAIN is on, also rewrite each
+ * such block's chain insn to a direct B.W (saves the indirect load
+ * + BX on every chained iter). */
 #if JIT_OPT_BLOCK_LINK
 static void cache_patch_links_to(uint32_t pc, uintptr_t target) {
     for (int i = 0; i < CACHE_SLOTS; i++) {
         if (s_table[i].pc != EMPTY_PC && s_links[i].next_pc == pc) {
             s_links[i].link_target = target;
+#if JIT_OPT_PATCH_CROSS_CHAIN
+            if (s_links[i].chain_insn_off != 0) {
+                /* target = body_addr | 1 (thumb bit). Strip the bit
+                 * to recover the byte address, then convert to global
+                 * halfword index. */
+                uintptr_t body_byte = target & ~(uintptr_t)1u;
+                uint16_t target_hw = (uint16_t)(((uintptr_t)body_byte
+                                                 - (uintptr_t)s_code_buf) / 2);
+                patch_chain_to_b_w(s_links[i].chain_insn_off, target_hw);
+            }
+#endif
         }
     }
 }
@@ -193,19 +241,30 @@ static void cache_patch_links_to(uint32_t pc, uintptr_t target) {
  * link_meta is a single global halfword index — that's what the link
  * patch arithmetic needs. */
 static void cache_finalize(int slot, uint16_t code_off, uint16_t code_hw,
-                           uint16_t body_off_local, uint32_t ops, uint32_t next_pc) {
+                           uint16_t body_off_local, uint16_t chain_insn_local,
+                           uint32_t ops, uint32_t next_pc) {
     uint16_t body_off_global = (uint16_t)(code_off + body_off_local);
+    uint16_t chain_insn_global = (chain_insn_local != 0)
+                                 ? (uint16_t)(code_off + chain_insn_local)
+                                 : 0;
     s_table[slot].code_off = code_off;
     s_table[slot].code_hw  = code_hw;
     s_table[slot].ops      = ops;
     s_links[slot].body_off = body_off_global;
+    s_links[slot].chain_insn_off = chain_insn_global;
     s_links[slot].next_pc  = next_pc;
 
     if (next_pc != DYN_NEXT_PC) {
         int existing = cache_find(next_pc);
         if (existing >= 0 && s_links[existing].body_off != 0) {
+            uint16_t target_hw = s_links[existing].body_off;
             s_links[slot].link_target =
-                (uintptr_t)(s_code_buf + (uint32_t)s_links[existing].body_off * 2) | 1u;
+                (uintptr_t)(s_code_buf + (uint32_t)target_hw * 2) | 1u;
+#if JIT_OPT_PATCH_CROSS_CHAIN
+            if (chain_insn_global != 0) {
+                patch_chain_to_b_w(chain_insn_global, target_hw);
+            }
+#endif
         }
     }
     uintptr_t our_body = (uintptr_t)(s_code_buf + (uint32_t)body_off_global * 2) | 1u;
@@ -281,6 +340,7 @@ interp_status_t jit_run(uint64_t budget) {
                     cache_finalize(slot, (uint16_t)(s_code_pos / 2),
                                    (uint16_t)(used / 2),
                                    (uint16_t)(meta.body_off_hw),
+                                   (uint16_t)(meta.chain_insn_hw),
                                    block_ops, meta.static_next_pc);
                 }
 #else

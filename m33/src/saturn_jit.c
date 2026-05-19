@@ -1890,6 +1890,7 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
     bool have_next = false;
 
     bool dyn_end = false;     /* true if next_pc is already in r0 at exit */
+    uint16_t chain_insn_off_hw = 0;
 
     while (!e.overflow) {
         nibble_t n0 = fetch_nib(pc);
@@ -2129,6 +2130,10 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                         uint32_t b = emit_b_w_placeholder(&e, -1);
                         emit_patch_b_w(&e, b, body_off_hw);
                     } else {
+                        /* Record chain insn position so cache_finalize
+                         * can overwrite it with a direct B.W once the
+                         * target block is known. */
+                        chain_insn_off_hw = e.pos;
                         emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
                         emit_ldr_imm(&e, 2, 2, 0);
                         emit_bx(&e, 2);
@@ -2140,6 +2145,7 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                         uint32_t b = emit_b_w_placeholder(&e, -1);
                         emit_patch_b_w(&e, b, body_off_hw);
                     } else {
+                        chain_insn_off_hw = e.pos;
                         emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
                         emit_ldr_imm(&e, 2, 2, 0);
                         emit_bx(&e, 2);
@@ -2170,6 +2176,7 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
         meta->code_bytes = emit_bytes_used(&e);
         meta->saturn_ops = ops;
         meta->body_off_hw = body_off_hw;
+        meta->chain_insn_hw = chain_insn_off_hw;
         meta->static_next_pc = dyn_end ? JIT_DYN_NEXT_PC : next_pc;
     }
     if (out_used) *out_used = emit_bytes_used(&e);

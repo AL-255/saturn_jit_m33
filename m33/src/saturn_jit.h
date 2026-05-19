@@ -28,6 +28,10 @@ typedef struct jit_block_meta_s {
     uint32_t code_bytes;      /* Thumb-2 bytes emitted */
     uint32_t saturn_ops;      /* Saturn ops translated */
     uint16_t body_off_hw;     /* halfword index where body starts (after prologue) */
+    uint16_t chain_insn_hw;   /* halfword offset (block-relative) of the
+                               * indirect-chain insn that can be patched to
+                               * a direct B.W. 0 if no patchable chain
+                               * (self-loop, dyn_end, no link). */
     uint32_t static_next_pc;  /* statically-known next PC, or 0xFFFFFFFE for dynamic */
 } jit_block_meta_t;
 

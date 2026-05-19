@@ -18,7 +18,8 @@
  *   2026-05-19 +BLOCK_LINK          arith= 1.6 memmix= 3.7 calltree= 5.5 countloop= 4.3
  *   2026-05-19 +SELF_LOOP_DIRECT_B  arith= 1.3 memmix= 2.5 calltree= 5.5 countloop= 4.1
  *   2026-05-19 +INLINE_RSTK         arith= 1.4 memmix= 2.6 calltree= 4.3 countloop= 4.7
- *   2026-05-19 +CB_CHAIN_NOTAKEN    arith= 1.4 memmix= 2.6 calltree= 4.1 countloop= 1.5   <- last commit
+ *   2026-05-19 +CB_CHAIN_NOTAKEN    arith= 1.4 memmix= 2.6 calltree= 4.1 countloop= 1.5
+ *   2026-05-19 +PATCH_CROSS_CHAIN   arith= 1.4 memmix= 2.6 calltree= 3.9 countloop= 1.6   <- last commit
  */
 
 #ifndef JIT_CONFIG_H
@@ -227,6 +228,22 @@
  * dispatcher. */
 #ifndef JIT_OPT_CB_CHAIN_NOTAKEN
 #define JIT_OPT_CB_CHAIN_NOTAKEN 1
+#endif
+
+/* For cross-block chains (block X → block Y where Y != X), the linked
+ * tail normally emits a 4-instr indirect: movw/movt r2, &link_target_word;
+ * ldr r2, [r2]; bx r2 (14 bytes). When Y is already finalized at the
+ * time X's tail is emitted — or when Y is finalized later — overwrite
+ * X's chain insn with a direct B.W to Y's body. The overwritten bytes
+ * after the B.W are dead. Single 4-byte B.W instead of 4 instructions
+ * per cross-chain execution.
+ *
+ * Self-loop chains (next_pc == start_pc) already emit a direct B.W at
+ * translate time via JIT_OPT_SELF_LOOP_DIRECT_BRANCH; this is the
+ * cross-block equivalent for the "block 3 → block 4 → block 2" shape
+ * that dominates calltree's iter overhead. */
+#ifndef JIT_OPT_PATCH_CROSS_CHAIN
+#define JIT_OPT_PATCH_CROSS_CHAIN 1
 #endif
 
 /* Update saturn.saturn_ops in the C dispatcher (from the budget delta
