@@ -1639,6 +1639,12 @@ static block_step_t translate_group_8B(emit_ctx_t *e, addr_t pc, uint32_t *consu
     if (dd == 0) { t.taken_kind = CB_TAKEN_RTN; t.taken_pc = 0; }
     else         { t.taken_kind = CB_TAKEN_STATIC; t.taken_pc = (pc + sext_nib(dd, 2) + 3) & 0xFFFFFu; }
     t.notaken_pc = (pc + 5) & 0xFFFFFu;
+#if JIT_OPT_CB_CHAIN_NOTAKEN
+    if (t.taken_kind == CB_TAKEN_STATIC) {
+        emit_compare_branch_tail_chainable(e, &t);
+        return BLK_CONTINUE;
+    }
+#endif
     emit_compare_branch_tail(e, &t);
     return BLK_END_DYN;
 }
@@ -1667,6 +1673,12 @@ static block_step_t translate_group_8_st_test(emit_ctx_t *e, addr_t pc, uint32_t
     if (dd == 0) { t.taken_kind = CB_TAKEN_RTN; t.taken_pc = 0; }
     else         { t.taken_kind = CB_TAKEN_STATIC; t.taken_pc = (pc + sext_nib(dd, 2) + 3) & 0xFFFFFu; }
     t.notaken_pc = (pc + 5) & 0xFFFFFu;
+#if JIT_OPT_CB_CHAIN_NOTAKEN
+    if (t.taken_kind == CB_TAKEN_STATIC) {
+        emit_compare_branch_tail_chainable(e, &t);
+        return BLK_CONTINUE;
+    }
+#endif
     emit_compare_branch_tail(e, &t);
     return BLK_END_DYN;
 }
@@ -1685,6 +1697,12 @@ static block_step_t translate_group_8_p_test(emit_ctx_t *e, addr_t pc, uint32_t 
     if (dd == 0) { t.taken_kind = CB_TAKEN_RTN; t.taken_pc = 0; }
     else         { t.taken_kind = CB_TAKEN_STATIC; t.taken_pc = (pc + sext_nib(dd, 2) + 3) & 0xFFFFFu; }
     t.notaken_pc = (pc + 5) & 0xFFFFFu;
+#if JIT_OPT_CB_CHAIN_NOTAKEN
+    if (t.taken_kind == CB_TAKEN_STATIC) {
+        emit_compare_branch_tail_chainable(e, &t);
+        return BLK_CONTINUE;
+    }
+#endif
     emit_compare_branch_tail(e, &t);
     return BLK_END_DYN;
 }
@@ -1899,16 +1917,16 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                 have_next = (s == BLK_END);
             } else if (n1 == 0x6 || n1 == 0x7) {
                 s = translate_group_8_st_test(&e, pc, &consumed, n1 == 0x7);
-                pc_after = pc;
+                pc_after = (s == BLK_CONTINUE) ? pc + consumed : pc;
             } else if (n1 == 0x8 || n1 == 0x9) {
                 s = translate_group_8_p_test(&e, pc, &consumed, n1 == 0x9);
-                pc_after = pc;
+                pc_after = (s == BLK_CONTINUE) ? pc + consumed : pc;
             } else if (n1 == 0xA) {
                 s = translate_group_8A(&e, pc, &consumed);
                 pc_after = (s == BLK_CONTINUE) ? pc + consumed : pc;
             } else if (n1 == 0xB) {
                 s = translate_group_8B(&e, pc, &consumed);
-                pc_after = pc;
+                pc_after = (s == BLK_CONTINUE) ? pc + consumed : pc;
             } else {
                 s = BLK_UNSUPP;
             }
