@@ -32,5 +32,9 @@ const workload_t *workload_build_memmix(uint8_t *buf, uint32_t cap, uint32_t ite
 const workload_t *workload_build_calltree(uint8_t *buf, uint32_t cap, uint32_t iters);
 /* "countloop": down-counter with ?A=0 A then restart. Exercises group 8A compare+branch. */
 const workload_t *workload_build_countloop(uint8_t *buf, uint32_t cap, uint32_t iters);
+/* "nqueens": tight 8-queens backtracking solver in Saturn assembly,
+ * adapted from the classic HP-48 RPL routine. Exercises P-field
+ * arithmetic, GOSUB/RTNCC, and many compare-branches. */
+const workload_t *workload_build_nqueens(uint8_t *buf, uint32_t cap, uint32_t iters);
 
 #endif

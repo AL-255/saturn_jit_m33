@@ -556,6 +556,47 @@ static addr_t do_group_1(addr_t pc) {
 static addr_t do_group_8(addr_t pc) {
     int n1 = fetch(pc + 1);
     switch (n1) {
+    case 0x0: { /* 8 0 X — group-8 sub-ops needed by the N-queens
+                   benchmark: LA (8082...), C=P n (80Cn), P=C n (80Dn),
+                   CPEX n (80Fn). The rest of the 80x family is left
+                   unimpl; it's mostly HP-48 hardware control. */
+        int n2 = fetch(pc + 2);
+        switch (n2) {
+        case 0x8: { /* 8 0 8 X */
+            int n3 = fetch(pc + 3);
+            switch (n3) {
+            case 0x2: { /* LA : load `op5+1` hex nibbles into A starting at A[P] */
+                int op5 = fetch(pc + 4);
+                int count = op5 + 1;
+                for (int i = 0; i < count; i++) {
+                    int idx = (saturn.p + i) & 0xf;
+                    saturn.reg[REG_A][idx] = fetch(pc + 5 + i);
+                }
+                return pc + 5 + count;
+            }
+            default: TRAP(INTERP_UNIMPL);
+            }
+        }
+        case 0xC: { /* C=P n : copy P into C[n] */
+            int n = fetch(pc + 3) & 0xf;
+            saturn.reg[REG_C][n] = saturn.p;
+            return pc + 4;
+        }
+        case 0xD: { /* P=C n : set P from C[n] */
+            int n = fetch(pc + 3) & 0xf;
+            saturn.p = saturn.reg[REG_C][n] & 0xf;
+            return pc + 4;
+        }
+        case 0xF: { /* CPEX n : swap C[n] ↔ P */
+            int n = fetch(pc + 3) & 0xf;
+            nibble_t t = saturn.reg[REG_C][n];
+            saturn.reg[REG_C][n] = saturn.p;
+            saturn.p = t & 0xf;
+            return pc + 4;
+        }
+        default: TRAP(INTERP_UNIMPL);
+        }
+    }
     case 0x2: { /* CLRSTmask */
         int m = fetch(pc + 2);
         for (int b = 0; b < 4; b++) if (m & (1 << b)) saturn.st[b] = 0;

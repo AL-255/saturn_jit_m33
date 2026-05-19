@@ -316,11 +316,18 @@ int main(void) {
     run_one(wl, MODE_INTERP,  budget);
     if (!BENCH_SKIP_JIT_OFF) run_one(wl, MODE_JIT_OFF, budget);
     run_one(wl, MODE_JIT_ON,  budget);
-    /* Warm mode is only meaningful when the cache held the working set.
-     * If jit-on evicted, the cache is too small — warm mode would race
-     * with the same eviction churn (and trips a known IC corner case at
-     * sub-2 KiB caches), so skip the warm row. The sweep treats a
-     * missing jit-warm row as "no data point at this size". */
+    if (jit_get_stats()->cache_evicts == 0) {
+        run_one(wl, MODE_JIT_WARM, budget);
+    }
+
+    wl = workload_build_nqueens(g_rom_buf, sizeof g_rom_buf, 0);
+    if (!BENCH_SKIP_CROSSCHECK) {
+        if (crosscheck(wl, MODE_JIT_OFF)) sh_exit();
+        if (crosscheck(wl, MODE_JIT_ON))  sh_exit();
+    }
+    run_one(wl, MODE_INTERP,  budget);
+    if (!BENCH_SKIP_JIT_OFF) run_one(wl, MODE_JIT_OFF, budget);
+    run_one(wl, MODE_JIT_ON,  budget);
     if (jit_get_stats()->cache_evicts == 0) {
         run_one(wl, MODE_JIT_WARM, budget);
     }

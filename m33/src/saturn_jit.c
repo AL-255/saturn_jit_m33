@@ -1103,6 +1103,28 @@ static void emit_store_d(emit_ctx_t *e, int rs, int idx) {
 static block_step_t translate_group_1(emit_ctx_t *e, addr_t pc, uint32_t *consumed) {
     int n1 = fetch_nib(pc + 1);
     switch (n1) {
+    case 0x0:
+    case 0x1: {
+        /* 1 0 n : Rn = (n<8 ? A : C) in W field (16 nibbles)
+         * 1 1 n : (n<8 ? A : C) = Rn  in W field
+         * Each scratch reg is 16 contiguous bytes at offsetof(saturn_t, reg_r[n]),
+         * so do four 32-bit LDR/STR pairs. */
+        int n2 = fetch_nib(pc + 2);
+        int rn = n2 & 7;
+        if (rn > 4) return BLK_UNSUPP;  /* only R0..R4 are real; 5..7 mirrors */
+        bool from_a = (n2 < 8);
+        uint16_t reg_off = from_a ? OFS_REG(REG_A) : OFS_REG(REG_C);
+        uint16_t rscratch_off = (uint16_t)(offsetof(saturn_t, reg_r) + rn * NIB_PER_REG);
+        uint16_t src_off, dst_off;
+        if (n1 == 0x0) { src_off = reg_off;    dst_off = rscratch_off; }
+        else           { src_off = rscratch_off; dst_off = reg_off;    }
+        for (int i = 0; i < 16; i += 4) {
+            emit_ldr_imm(e, 0, 4, src_off + i);
+            emit_str_imm(e, 0, 4, dst_off + i);
+        }
+        *consumed = 3;
+        return BLK_CONTINUE;
+    }
     case 0x4: { /* DAT W or B short form */
         int n2 = fetch_nib(pc + 2);
         int op = n2 & 7;
@@ -1322,6 +1344,76 @@ static block_step_t translate_group_f_real(emit_ctx_t *e, addr_t pc) {
 }
 
 /* ---------------- Group 8 long branches (8C/8D/8E/8F) ---------------- */
+
+/* Translate the small subset of `8 0 X` ops the N-queens workload
+ * uses: LA (load A hex constant), C=P n, P=C n, CPEX n. Everything
+ * else in the 80x family is left as BLK_UNSUPP so the dispatcher
+ * falls back to the interpreter. */
+static block_step_t translate_group_8_zero(emit_ctx_t *e, addr_t pc, uint32_t *consumed) {
+    int n2 = fetch_nib(pc + 2);
+    if (n2 == 0x8) {
+        int n3 = fetch_nib(pc + 3);
+        if (n3 != 0x2) return BLK_UNSUPP;      /* only LA implemented here */
+        int op5 = fetch_nib(pc + 4);
+        int count = op5 + 1;
+        *consumed = 5 + count;
+        /* For each nibble i in [0, count): saturn.reg[A][(P + i) & 15] = nibs[i]
+         * Per-nibble emit:
+         *   ldrb r0, [r4, #OFS(p)]
+         *   adds r0, r0, #i           ; (i may be 0; folded if so)
+         *   and  r0, r0, #0xf
+         *   add  r1, r4, #OFS_REG(A)  ; via movw/add
+         *   adds r1, r1, r0           ; r1 = &reg[A][P+i mod 16]
+         *   movs r2, #nib
+         *   strb r2, [r1, #0]
+         * That's 6+ instructions per nibble — heavy. For the typical case
+         * P==0 at the LAHEX site we could specialize, but to keep the JIT
+         * code small we just go through saturn.p each time. */
+        uint16_t a_base = OFS_REG(REG_A);
+        for (int i = 0; i < count; i++) {
+            int nib = fetch_nib(pc + 5 + i);
+            emit_ldrb_imm(e, 0, 4, OFS(p));         /* r0 = P */
+            if (i != 0) {
+                emit_adds_lo_imm8(e, 0, (uint8_t)i);
+                emit_and_imm_small(e, 0, 0, 0xf);
+            }
+            emit_add_imm_t3_small(e, 1, 4, a_base); /* r1 = &saturn + OFS(reg A) */
+            /* add r1, r1, r0 — 16-bit T1: adds Rd|Rn(low)+Rm reg form. */
+            emit_hw(e, 0x4400 | ((1 & 0x8) << 4) | ((0 & 0xf) << 3) | (1 & 0x7));
+            emit_mov_lo_imm8(e, 2, (uint8_t)nib);
+            emit_strb_imm(e, 2, 1, 0);
+        }
+        return BLK_CONTINUE;
+    }
+    if (n2 == 0xC || n2 == 0xD || n2 == 0xF) {
+        int n3 = fetch_nib(pc + 3) & 0xf;
+        *consumed = 4;
+        uint16_t c_nib = OFS_REG(REG_C) + (uint16_t)n3;
+        switch (n2) {
+        case 0xC: { /* C=P n : C[n] = P */
+            emit_ldrb_imm(e, 0, 4, OFS(p));
+            emit_strb_imm(e, 0, 4, c_nib);
+            break;
+        }
+        case 0xD: { /* P=C n : P = C[n] & 0xf */
+            emit_ldrb_imm(e, 0, 4, c_nib);
+            emit_and_imm_small(e, 0, 0, 0xf);
+            emit_strb_imm(e, 0, 4, OFS(p));
+            break;
+        }
+        case 0xF: { /* CPEX n : swap C[n] ↔ P */
+            emit_ldrb_imm(e, 0, 4, OFS(p));
+            emit_ldrb_imm(e, 1, 4, c_nib);
+            emit_strb_imm(e, 1, 4, OFS(p));
+            emit_and_imm_small(e, 0, 0, 0xf);
+            emit_strb_imm(e, 0, 4, c_nib);
+            break;
+        }
+        }
+        return BLK_CONTINUE;
+    }
+    return BLK_UNSUPP;
+}
 
 static block_step_t translate_group_8_branch(emit_ctx_t *e, addr_t pc, addr_t *out_next, uint32_t *consumed) {
     int n1 = fetch_nib(pc + 1);
@@ -1969,7 +2061,10 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                   break;
         case 0x8: {
             int n1 = fetch_nib(pc + 1);
-            if (n1 >= 0xC && n1 <= 0xF) {
+            if (n1 == 0x0) {
+                s = translate_group_8_zero(&e, pc, &consumed);
+                pc_after = (s == BLK_CONTINUE) ? pc + consumed : pc;
+            } else if (n1 >= 0xC && n1 <= 0xF) {
                 s = translate_group_8_branch(&e, pc, &next_pc, &consumed);
                 pc_after = pc;
                 have_next = (s == BLK_END);
@@ -2293,6 +2388,15 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
     emit_finalize(&e);
 
     if (e.overflow) {
+        if (out_used) *out_used = 0;
+        return NULL;
+    }
+    /* If the very first opcode at start_pc was unsupported, ops == 0 and
+     * the block we just emitted is effectively "jump to self". Returning
+     * NULL here makes the dispatcher's fallback path take an interpreter
+     * step past the unsupported op and try translating at the next pc;
+     * otherwise the chained self-loop would spin forever. */
+    if (ops == 0) {
         if (out_used) *out_used = 0;
         return NULL;
     }

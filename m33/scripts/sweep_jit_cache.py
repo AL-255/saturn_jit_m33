@@ -89,7 +89,7 @@ RESULT_RE = re.compile(
     r"RESULT,(\w+),(\w+(?:-\w+)?),ops=(\d+),ticks=(\d+)"
 )
 TICKFREQ_RE = re.compile(r"tickfreq=(\d+)")
-WORKLOADS = ("arith", "memmix", "calltree", "countloop")
+WORKLOADS = ("arith", "memmix", "calltree", "countloop", "nqueens")
 TRIALS = 2
 
 
