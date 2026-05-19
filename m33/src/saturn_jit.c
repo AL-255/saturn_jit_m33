@@ -771,6 +771,125 @@ static const field_arith_entry_t b_arith[16] = {
 /* For A,fs≥8 (move/zero/exchange). reg_copy, reg_zero, reg_xchg signatures
  * differ enough that we'll just emit case-by-case. */
 
+#if JIT_OPT_INLINE_P_FIELD
+/* P-field arith is a 1-nibble op — emit it inline rather than calling
+ * the generic field helper, which loops + checks field length on every
+ * dispatch. Saves ~30-40 cycles per Saturn arith op on the P-field-
+ * heavy nqueens workload. Carries: ADD-family uses bit 4 of the sum
+ * (0..30) as carry-out; SUB-family uses bit 31 of (a-b) (set on borrow).
+ * Hex mode is the only mode the bench uses; BCD-mode P-field arith
+ * still falls through to the helper.
+ *
+ * Encoding helpers used:
+ *   ldrb Rt, [Rn, Rm] (T1): 0x5C00 | (Rm<<6) | (Rn<<3) | Rt
+ *   strb Rt, [Rn, Rm] (T1): 0x5400 | (Rm<<6) | (Rn<<3) | Rt
+ */
+static void emit_ldrb_reg_t1(emit_ctx_t *e, int rt, int rn, int rm) {
+    emit_hw(e, 0x5C00 | ((rm & 7) << 6) | ((rn & 7) << 3) | (rt & 7));
+}
+static void emit_strb_reg_t1(emit_ctx_t *e, int rt, int rn, int rm) {
+    emit_hw(e, 0x5400 | ((rm & 7) << 6) | ((rn & 7) << 3) | (rt & 7));
+}
+
+static void emit_inline_p_arith(emit_ctx_t *e,
+                                 const field_arith_entry_t *t,
+                                 bool is_sub_family) {
+    /* r0 = P (loaded once). r1 is scratch base. r2 = working nibble.
+     * r3 = carry-out. Final stores: r2 → dst[P], r3 → saturn.carry. */
+    emit_ldrb_imm(e, 0, 4, OFS(p));
+
+    if (t->helper3) {
+        /* Binary op: r2 = reg[a][P]. */
+        emit_add_imm_t3_small(e, 1, 4, OFS_REG(t->a));
+        emit_ldrb_reg_t1(e, 2, 1, 0);
+        if (t->a == t->b) {
+            /* a == b (e.g. A=A+A): r3 = r2 via T1 mov. */
+            emit_hw(e, 0x4600 | ((3 & 0x8) << 4) | ((2 & 0xf) << 3) | (3 & 0x7));
+        } else {
+            emit_add_imm_t3_small(e, 1, 4, OFS_REG(t->b));
+            emit_ldrb_reg_t1(e, 3, 1, 0);
+        }
+        if (is_sub_family) {
+            /* subs r2, r2, r3 (T1) */
+            emit_hw(e, 0x1A00 | (3 << 6) | (2 << 3) | 2);
+        } else {
+            /* adds r2, r2, r3 (T1) */
+            emit_hw(e, 0x1800 | (3 << 6) | (2 << 3) | 2);
+        }
+    } else {
+        /* Unary: r2 = reg[res][P], then ±1. */
+        emit_add_imm_t3_small(e, 1, 4, OFS_REG(t->res));
+        emit_ldrb_reg_t1(e, 2, 1, 0);
+        if (is_sub_family) {
+            /* INC family in group B (op 4..7): adds r2, #1 */
+            emit_adds_lo_imm8(e, 2, 1);
+        } else {
+            /* DEC family in group A (op C..F): subs r2, #1 */
+            emit_subs_lo_imm8(e, 2, 1);
+        }
+    }
+
+    /* Extract carry. ADD-family sums to 0..30 (bit 4 is carry-out);
+     * SUB-family computes a-b in 32-bit signed (bit 31 is borrow). */
+    bool carry_is_borrow = is_sub_family
+        ? (t->helper3 != NULL)  /* binary sub → borrow */
+        : (t->helper3 == NULL); /* unary DEC → borrow */
+    /* Unary INC (helper3==NULL, is_sub_family==true) uses ADD-style carry. */
+    if (!t->helper3 && is_sub_family) {
+        carry_is_borrow = false; /* INC: carry from bit 4 like ADD */
+    }
+    if (carry_is_borrow) {
+        /* lsrs r3, r2, #31 (T1 LSR imm: imm=31 fits) */
+        emit_lsrs_lo_imm(e, 3, 2, 31);
+    } else {
+        /* lsrs r3, r2, #4 */
+        emit_lsrs_lo_imm(e, 3, 2, 4);
+    }
+    /* and r2, r2, #0xf */
+    emit_and_imm_small(e, 2, 2, 0xf);
+
+    /* Store result and carry. For unary the dst reg was already loaded
+     * into r1 above; skip the redundant ADD. */
+    if (t->helper3) {
+        emit_add_imm_t3_small(e, 1, 4, OFS_REG(t->res));
+    }
+    emit_strb_reg_t1(e, 2, 1, 0);
+    emit_strb_imm(e, 3, 4, OFS(carry));
+}
+
+/* P-field zero / copy / exchange (group A/B fs ≥ 8, fs & 7 == 0).
+ *   op 0..3: dst = 0           dst ∈ {A,B,C,D}
+ *   op 4..7: dst = src          (4:A=B 5:B=C 6:C=A 7:D=C)
+ *   op 8..B: dst = src          (8:B=A 9:C=B A:A=C B:C=D)
+ *   op C..F: exchange a ↔ b     (C:ABEX D:BCEX E:ACEX F:CDEX)
+ */
+static void emit_inline_p_copy(emit_ctx_t *e, int dst_reg, int src_reg,
+                                bool is_xchg, bool is_zero) {
+    emit_ldrb_imm(e, 0, 4, OFS(p));               /* r0 = P */
+    if (is_zero) {
+        emit_add_imm_t3_small(e, 1, 4, OFS_REG(dst_reg));
+        emit_mov_lo_imm8(e, 2, 0);
+        emit_strb_reg_t1(e, 2, 1, 0);
+        return;
+    }
+    if (is_xchg) {
+        emit_add_imm_t3_small(e, 1, 4, OFS_REG(dst_reg));
+        emit_ldrb_reg_t1(e, 2, 1, 0);             /* r2 = dst[P] */
+        emit_add_imm_t3_small(e, 1, 4, OFS_REG(src_reg));
+        emit_ldrb_reg_t1(e, 3, 1, 0);             /* r3 = src[P] */
+        emit_strb_reg_t1(e, 2, 1, 0);             /* src[P] = old dst */
+        emit_add_imm_t3_small(e, 1, 4, OFS_REG(dst_reg));
+        emit_strb_reg_t1(e, 3, 1, 0);             /* dst[P] = old src */
+        return;
+    }
+    /* Plain copy dst[P] = src[P]. */
+    emit_add_imm_t3_small(e, 1, 4, OFS_REG(src_reg));
+    emit_ldrb_reg_t1(e, 2, 1, 0);
+    emit_add_imm_t3_small(e, 1, 4, OFS_REG(dst_reg));
+    emit_strb_reg_t1(e, 2, 1, 0);
+}
+#endif /* JIT_OPT_INLINE_P_FIELD */
+
 static void emit_field_arith(emit_ctx_t *e, const field_arith_entry_t *t, int field) {
     if (t->helper3) {
         emit_helper_call_3ptr_int(e, OFS_REG(t->res), OFS_REG(t->a), OFS_REG(t->b),
@@ -786,10 +905,37 @@ static block_step_t translate_group_a(emit_ctx_t *e, addr_t pc) {
     int op = fetch_nib(pc + 2);
     int field = fs & 7;
     if (fs < 8) {
+#if JIT_OPT_INLINE_P_FIELD
+        if (field == 0) {
+            /* Group A fs=0: ADD-family (op<C) or DEC-family (op≥C). */
+            emit_inline_p_arith(e, &a_arith[op], /*is_sub_family*/ op >= 0xC);
+            return BLK_CONTINUE;
+        }
+#endif
         emit_field_arith(e, &a_arith[op], field);
         return BLK_CONTINUE;
     }
     /* fs ≥ 8: zero / copy / exchange */
+#if JIT_OPT_INLINE_P_FIELD
+    if (field == 0) {
+        static const uint8_t dst_tab[16] = {
+            REG_A, REG_B, REG_C, REG_D,     /* 0..3 zero */
+            REG_A, REG_B, REG_C, REG_D,     /* 4..7 copy dst */
+            REG_B, REG_C, REG_A, REG_C,     /* 8..B copy dst */
+            REG_A, REG_B, REG_A, REG_C,     /* C..F xchg "a" */
+        };
+        static const uint8_t src_tab[16] = {
+            0, 0, 0, 0,                     /* zeros — src unused */
+            REG_B, REG_C, REG_A, REG_C,     /* 4..7 copy src */
+            REG_A, REG_B, REG_C, REG_D,     /* 8..B copy src */
+            REG_B, REG_C, REG_C, REG_D,     /* C..F xchg "b" */
+        };
+        emit_inline_p_copy(e, dst_tab[op], src_tab[op],
+                           /*is_xchg*/ op >= 0xC,
+                           /*is_zero*/ op < 4);
+        return BLK_CONTINUE;
+    }
+#endif
     switch (op) {
     case 0x0: emit_helper_call_ptr_int(e, OFS_REG(REG_A), field, (const void *)reg_zero); break;
     case 0x1: emit_helper_call_ptr_int(e, OFS_REG(REG_B), field, (const void *)reg_zero); break;
@@ -816,6 +962,14 @@ static block_step_t translate_group_b(emit_ctx_t *e, addr_t pc) {
     int op = fetch_nib(pc + 2);
     int field = fs & 7;
     if (fs < 8) {
+#if JIT_OPT_INLINE_P_FIELD
+        if (field == 0) {
+            /* Group B fs=0: SUB-family (op<4 or 8..F) or INC-family (op 4..7). */
+            bool is_sub_family = !(op >= 0x4 && op <= 0x7);
+            emit_inline_p_arith(e, &b_arith[op], is_sub_family);
+            return BLK_CONTINUE;
+        }
+#endif
         emit_field_arith(e, &b_arith[op], field);
         return BLK_CONTINUE;
     }

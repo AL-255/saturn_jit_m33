@@ -45,6 +45,15 @@
 #define JIT_OPT_INLINE_FIELD_ADD 1
 #endif
 
+/* Inline P-field arith and zero/copy/exch ops (groups A and B with
+ * fs=0). P-field ops are 1-nibble; the generic field-arith helper
+ * still runs a loop and re-checks the field code, so calling it costs
+ * ~30-40 cycles per Saturn op. Inlined emit is ~10 cycles. Big win on
+ * the nqueens workload, which is dominated by P-field arith. */
+#ifndef JIT_OPT_INLINE_P_FIELD
+#define JIT_OPT_INLINE_P_FIELD 1
+#endif
+
 /* Inline 2-operand field sub (group E op 0..B, B op 0..B with fs<8). */
 #ifndef JIT_OPT_INLINE_FIELD_SUB
 #define JIT_OPT_INLINE_FIELD_SUB 1
