@@ -107,20 +107,19 @@ static void emit_inline_rstk_pop(emit_ctx_t *e) {
     emit_cmp_imm_t2(e, 0, 0);                   /* cmp r0, #0 */
     /* b.w lt to underflow target — patched later. */
     uint32_t br_underflow = emit_b_w_placeholder(e, 0xB);   /* cond LT */
-    /* fast path */
-    emit_movs_lo(e, 1, 0);                      /* mov r1, r0 (save old ptr) */
+    /* fast path. r0 = old rstk_ptr. Decrement and store back; then load
+     * rstk[old_ptr]. Combine the *4 index scale with the LDR's built-in
+     * LSL shift to skip the explicit LSLS + ADDW. */
+    emit_movs_lo(e, 1, 0);                      /* r1 = r0 (save old ptr) */
     emit_subs_lo_lo_imm3(e, 0, 0, 1);           /* subs r0, r0, #1 */
     emit_strb_imm(e, 0, 4, OFS(rstk_ptr));
-    /* lsls r1, r1, #2  (T1: 0000 0 imm5 Rm Rd; for r1, imm=2 → 0x0089) */
-    emit_hw(e, 0x0000 | (2 << 6) | (1 << 3) | 1);  /* lsls r1, r1, #2 */
-    /* addw r1, r1, #OFS(rstk)  (T4 ADD imm12 small via emit_add_imm_t3_small) */
-    emit_add_imm_t3_small(e, 1, 1, OFS(rstk));
-    /* ldr.w r0, [r4, r1] — T2 LDR register: 1111 1000 0101 Rn | Rt 000000 type Rm
-     * Encoding: hi = 0xF850 | Rn, lo = (Rt<<12) | (imm2<<4) | Rm (with type=00 LSL, shift=0).
-     * For ldr r0, [r4, r1]: Rn=4, Rt=0, Rm=1. */
+    /* r2 = &saturn.rstk  (so the LDR can be `[r2, r1, lsl #2]`) */
+    emit_add_imm_t3_small(e, 2, 4, OFS(rstk));
+    /* ldr.w r0, [r2, r1, lsl #2] :
+     *   hi = 0xF850 | Rn, lo = (Rt<<12) | (imm2<<4) | Rm   (type=00 LSL) */
     {
-        uint32_t hi = 0xF850 | 4;
-        uint32_t lo = (0 << 12) | (0 << 4) | 1;
+        uint32_t hi = 0xF850 | 2;
+        uint32_t lo = (0 << 12) | (2 << 4) | 1;  /* imm2 = 2 → shift #2 */
         emit_w32(e, (hi << 16) | lo);
     }
     uint32_t br_done = emit_b_w_placeholder(e, -1);
@@ -150,15 +149,15 @@ static void emit_inline_rstk_push(emit_ctx_t *e) {
     emit_adds_lo_lo_imm3(e, 2, 2, 1);              /* adds r2, r2, #1 */
     emit_cmp_imm_t2(e, 2, NB_RSTK);                 /* cmp r2, #8 */
     uint32_t br_overflow = emit_b_w_placeholder(e, 0xA);  /* cond GE */
-    /* fast path */
+    /* fast path. Combine the *4 index scale with the STR's built-in LSL
+     * shift to skip the explicit LSLS + ADDW. */
     emit_strb_imm(e, 2, 4, OFS(rstk_ptr));
-    /* lsls r2, r2, #2 — encoding 0x0000 | (2<<6) | (2<<3) | 2 = 0x0092 */
-    emit_hw(e, 0x0000 | (2 << 6) | (2 << 3) | 2);
-    emit_add_imm_t3_small(e, 2, 2, OFS(rstk));      /* addw r2, r2, #OFS(rstk) */
-    /* str r1, [r4, r2] : T2 STR register. hi = 0xF840 | Rn, lo = (Rt<<12) | (imm2<<4) | Rm */
+    /* r3 = &saturn.rstk */
+    emit_add_imm_t3_small(e, 3, 4, OFS(rstk));
+    /* str.w r1, [r3, r2, lsl #2] : hi=0xF840|Rn, lo=(Rt<<12)|(imm2<<4)|Rm */
     {
-        uint32_t hi = 0xF840 | 4;
-        uint32_t lo = (1 << 12) | (0 << 4) | 2;
+        uint32_t hi = 0xF840 | 3;
+        uint32_t lo = (1 << 12) | (2 << 4) | 2;
         emit_w32(e, (hi << 16) | lo);
     }
     uint32_t br_done = emit_b_w_placeholder(e, -1);

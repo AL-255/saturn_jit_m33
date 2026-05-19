@@ -20,7 +20,8 @@
  *   2026-05-19 +INLINE_RSTK         arith= 1.4 memmix= 2.6 calltree= 4.3 countloop= 4.7
  *   2026-05-19 +CB_CHAIN_NOTAKEN    arith= 1.4 memmix= 2.6 calltree= 4.1 countloop= 1.5
  *   2026-05-19 +PATCH_CROSS_CHAIN   arith= 1.4 memmix= 2.6 calltree= 3.9 countloop= 1.6
- *   2026-05-19 +RTN_INLINE_CACHE    arith= 1.4 memmix= 2.6 calltree= 2.9 countloop= 1.5   <- last commit
+ *   2026-05-19 +RTN_INLINE_CACHE    arith= 1.4 memmix= 2.6 calltree= 2.9 countloop= 1.5
+ *   2026-05-19 +rstk_lsl_in_str     arith= 1.3 memmix= 2.5 calltree= 2.1 countloop= 1.4   <- last commit
  */
 
 #ifndef JIT_CONFIG_H
