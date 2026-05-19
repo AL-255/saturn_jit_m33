@@ -1463,8 +1463,12 @@ static void emit_compare_branch_tail_chainable(emit_ctx_t *e, const cb_targets_t
     /* r0 already holds the condition (0 or 1) — which is also the new
      * carry value. Store first (strb doesn't change flags), then test. */
     emit_strb_imm(e, 0, 4, OFS(carry));
+#if JIT_OPT_CBZ_BRANCH_DISPATCH
+    uint32_t br_notaken = emit_cbz_placeholder(e, 0);   /* CBZ r0 → notaken */
+#else
     emit_cmp_imm_t2(e, 0, 0);
     uint32_t br_notaken = emit_b_w_placeholder(e, 0);   /* EQ → notaken */
+#endif
 
     /* --- taken path: bump br_taken, r0=taken_pc --- */
     emit_branch_counter(e, OFS(saturn_branches_taken));
@@ -1530,7 +1534,11 @@ static void emit_compare_branch_tail_chainable(emit_ctx_t *e, const cb_targets_t
     uint32_t L_notaken = e->pos;
     emit_branch_counter(e, OFS(saturn_branches_skipped));
 
+#if JIT_OPT_CBZ_BRANCH_DISPATCH
+    emit_patch_cbz(e, br_notaken, L_notaken);
+#else
     emit_patch_b_w(e, br_notaken, L_notaken);
+#endif
     discard_pending_carry();
 }
 #endif
@@ -1541,8 +1549,12 @@ static void emit_compare_branch_tail(emit_ctx_t *e, const cb_targets_t *t) {
     /* r0 already holds the condition (0 or 1) — also the new carry.
      * Store first (strb doesn't change flags), then test. */
     emit_strb_imm(e, 0, 4, OFS(carry));
+#if JIT_OPT_CBZ_BRANCH_DISPATCH
+    uint32_t br = emit_cbz_placeholder(e, 0);   /* CBZ r0 → notaken */
+#else
     emit_cmp_imm_t2(e, 0, 0);
     uint32_t br = emit_b_w_placeholder(e, 0);   /* cond EQ = 0 */
+#endif
 
     /* --- taken path --- */
     emit_branch_counter(e, OFS(saturn_branches_taken));
@@ -1559,7 +1571,11 @@ static void emit_compare_branch_tail(emit_ctx_t *e, const cb_targets_t *t) {
     emit_set_r0_pc(e, t->notaken_pc);
 
     uint32_t L_end = e->pos;
+#if JIT_OPT_CBZ_BRANCH_DISPATCH
+    emit_patch_cbz(e, br, L_notaken);
+#else
     emit_patch_b_w(e, br, L_notaken);
+#endif
     emit_patch_b_w(e, br_end, L_end);
     /* Both paths wrote saturn.carry explicitly. Any pending r2 carry
      * from prior inline arith is now superseded. */

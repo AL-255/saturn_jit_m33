@@ -305,6 +305,20 @@
 #define JIT_OPT_SKIP_BRANCH_COUNTERS 0
 #endif
 
+/* Replace `strb r0,[carry] ; cmp r0,#0 ; beq.w notaken` with
+ * `strb r0,[carry] ; cbz r0, notaken` in compare-branch tails.
+ * CBZ is T1 (2 bytes) and combines compare-with-zero + forward
+ * branch into one instruction; saves 1 instruction + 4 bytes per
+ * CB execution. Range ±126 bytes forward is plenty for the taken-
+ * exit emit (~40 bytes typical).
+ *
+ * Default OFF: arith −2%, countloop +3%, memmix +4%, calltree
+ * unchanged under QEMU TCG — same emit-layout sensitivity story.
+ * Expected uniformly positive on real M33 hardware. */
+#ifndef JIT_OPT_CBZ_BRANCH_DISPATCH
+#define JIT_OPT_CBZ_BRANCH_DISPATCH 0
+#endif
+
 /* Precompute saturn.ram_dat_bound (= ram_base + ram_size - 4) and
  * saturn.ram_minus_ram_base (= (uintptr_t)ram - ram_base) at workload
  * setup. INLINE_DAT then needs only 2 ldrs + cmp + add (4 instrs)
