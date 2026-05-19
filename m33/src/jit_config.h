@@ -86,13 +86,12 @@
  * Currently every LC goes through jit_lc_copy helper. For n ≤ 4 we
  * can emit a small inline sequence using STRB register-offset.
  *
- * Default OFF: measured 25-28% SLOWER on arith and calltree under
- * QEMU, ~same on countloop (which was supposed to benefit). QEMU
- * TCG likely models inline integer code less efficiently per-insn
- * than my model assumes. Cross-check still passes; the inline emit
- * is semantically correct. Re-evaluate on real hardware. */
+ * Default ON: re-measured after the rest of the JIT settled. countloop
+ * picks up ~8% (its restart LC fires every outer iter); arith / memmix
+ * / calltree are neutral. Earlier benchmark showing arith -25% was
+ * before the chain optimizations stabilised. */
 #ifndef JIT_OPT_INLINE_LC
-#define JIT_OPT_INLINE_LC 0
+#define JIT_OPT_INLINE_LC 1
 #endif
 
 /* Maximum LC count we inline; larger LCs fall back to the helper. */
