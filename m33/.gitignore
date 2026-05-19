@@ -1,0 +1,8 @@
+*.o
+*.elf
+*.map
+*.dis
+smoke/*.o
+smoke/*.elf
+smoke/*.map
+smoke/*.dis

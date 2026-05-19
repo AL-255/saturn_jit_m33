@@ -1,3 +1,6 @@
 [submodule "x48ng"]
 	path = x48ng
 	url = https://codeberg.org/gwh/x48ng.git
+[submodule "x50ng"]
+	path = x50ng
+	url = https://codeberg.org/gwh/x50ng.git
