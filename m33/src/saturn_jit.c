@@ -1997,37 +1997,40 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
          * BLT fires inside one of them — at worst we overshoot by one
          * RTN block's ops. */
         if (link_target) {
+            /* ic_ret_pc (uint32) and ic_ret_body (uintptr_t) are adjacent
+             * in cache_link_meta_t — load both with one LDRD. r2 =
+             * ic_ret_pc (consumed by cmp), r3 = ic_ret_body (consumed by
+             * bx). */
             uint32_t ic_pc_addr = (uint32_t)(uintptr_t)link_target + 4;
             emit_mov_imm32(&e, 1, ic_pc_addr);
-            emit_ldr_imm(&e, 2, 1, 0);                      /* r2 = ic_ret_pc */
-            emit_hw(&e, 0x4280 | (2 << 3) | 0);            /* cmp r0, r2 */
-            uint32_t br_miss = emit_b_w_placeholder(&e, 1);/* BNE → miss */
+            /* LDRD r2, r3, [r1] : 0xE9D1 0x2300 (T1 imm offset=0) */
+            emit_w32(&e, 0xE9D12300);
+            emit_hw(&e, 0x4280 | (2 << 3) | 0);             /* cmp r0, r2 */
+            uint32_t br_miss = emit_b_w_placeholder(&e, 1); /* BNE → miss */
             if (ops != 0) {
 #if !JIT_OPT_BUDGET_DRIVEN_OPS
-                /* saturn_ops += ops (use r3, keep r0 intact for the miss
-                 * fallback). */
-                emit_ldr_imm(&e, 3, 4, OFS(saturn_ops));
-                if (ops <= 0xff)      emit_adds_lo_imm8(&e, 3, (uint8_t)ops);
-                else if (ops <= 0xfff) emit_add_imm_t3_small(&e, 3, 3, (uint16_t)ops);
-                else { emit_mov_imm32(&e, 2, ops);
-                       uint32_t hi = 0xEB00 | 3;
-                       uint32_t lo = (0 << 12) | (3 << 8) | 2;
+                /* saturn_ops += ops in r2 (now free after cmp). */
+                emit_ldr_imm(&e, 2, 4, OFS(saturn_ops));
+                if (ops <= 0xff)      emit_adds_lo_imm8(&e, 2, (uint8_t)ops);
+                else if (ops <= 0xfff) emit_add_imm_t3_small(&e, 2, 2, (uint16_t)ops);
+                else { emit_mov_imm32(&e, 12, ops);
+                       uint32_t hi = 0xEB00 | 2;
+                       uint32_t lo = (0 << 12) | (2 << 8) | 12;
                        emit_w32(&e, (hi << 16) | lo); }
-                emit_str_imm(&e, 3, 4, OFS(saturn_ops));
+                emit_str_imm(&e, 2, 4, OFS(saturn_ops));
 #endif
-                /* budget -= ops */
-                emit_ldr_imm(&e, 3, 4, OFS(budget_remaining));
-                if (ops <= 0xff)      emit_subs_lo_imm8(&e, 3, (uint8_t)ops);
-                else if (ops <= 0xfff) emit_sub_imm_t3_small(&e, 3, 3, (uint16_t)ops);
-                else { emit_mov_imm32(&e, 2, ops);
-                       uint32_t hi = 0xEBA0 | 3;
-                       uint32_t lo = (0 << 12) | (3 << 8) | 2;
+                /* budget -= ops in r2 */
+                emit_ldr_imm(&e, 2, 4, OFS(budget_remaining));
+                if (ops <= 0xff)      emit_subs_lo_imm8(&e, 2, (uint8_t)ops);
+                else if (ops <= 0xfff) emit_sub_imm_t3_small(&e, 2, 2, (uint16_t)ops);
+                else { emit_mov_imm32(&e, 12, ops);
+                       uint32_t hi = 0xEBA0 | 2;
+                       uint32_t lo = (0 << 12) | (2 << 8) | 12;
                        emit_w32(&e, (hi << 16) | lo); }
-                emit_str_imm(&e, 3, 4, OFS(budget_remaining));
+                emit_str_imm(&e, 2, 4, OFS(budget_remaining));
             }
-            /* Chain via ic_ret_body. */
-            emit_ldr_imm(&e, 2, 1, 4);
-            emit_bx(&e, 2);
+            /* Chain via ic_ret_body (still in r3). */
+            emit_bx(&e, 3);
             uint32_t miss_pos = e.pos;
             emit_patch_b_w(&e, br_miss, miss_pos);
             /* Miss path falls through to the standard dyn_end emit below
