@@ -1451,12 +1451,13 @@ static void emit_branch_counter(emit_ctx_t *e, uint16_t ofs) {
  * Caller must check t->taken_kind == CB_TAKEN_STATIC before calling
  * this (RTN-style dynamic taken targets still use the dyn_end path). */
 static void emit_compare_branch_tail_chainable(emit_ctx_t *e, const cb_targets_t *t) {
+    /* r0 already holds the condition (0 or 1) — which is also the new
+     * carry value. Store first (strb doesn't change flags), then test. */
+    emit_strb_imm(e, 0, 4, OFS(carry));
     emit_cmp_imm_t2(e, 0, 0);
     uint32_t br_notaken = emit_b_w_placeholder(e, 0);   /* EQ → notaken */
 
-    /* --- taken path: set carry=1, bump br_taken, r0=taken_pc --- */
-    emit_mov_imm32(e, 0, 1);
-    emit_strb_imm(e, 0, 4, OFS(carry));
+    /* --- taken path: bump br_taken, r0=taken_pc --- */
     emit_branch_counter(e, OFS(saturn_branches_taken));
     emit_set_r0_pc(e, t->taken_pc);
 
@@ -1495,10 +1496,8 @@ static void emit_compare_branch_tail_chainable(emit_ctx_t *e, const cb_targets_t
     }
     emit_hw(e, EPILOGUE_POP_OP);
 
-    /* --- notaken path --- */
+    /* --- notaken path: carry already stored above (was 0) --- */
     uint32_t L_notaken = e->pos;
-    emit_mov_imm32(e, 0, 0);
-    emit_strb_imm(e, 0, 4, OFS(carry));
     emit_branch_counter(e, OFS(saturn_branches_skipped));
 
     emit_patch_b_w(e, br_notaken, L_notaken);
@@ -1509,13 +1508,13 @@ static void emit_compare_branch_tail_chainable(emit_ctx_t *e, const cb_targets_t
 /* After the condition is in r0 (0/1), emit the taken/not-taken
  * dispatch. Returns BLK_END_DYN (r0 holds next PC at exit). */
 static void emit_compare_branch_tail(emit_ctx_t *e, const cb_targets_t *t) {
-    /* CMP r0, #0 ; B.W eq → notaken */
+    /* r0 already holds the condition (0 or 1) — also the new carry.
+     * Store first (strb doesn't change flags), then test. */
+    emit_strb_imm(e, 0, 4, OFS(carry));
     emit_cmp_imm_t2(e, 0, 0);
     uint32_t br = emit_b_w_placeholder(e, 0);   /* cond EQ = 0 */
 
     /* --- taken path --- */
-    emit_mov_imm32(e, 0, 1);
-    emit_strb_imm(e, 0, 4, OFS(carry));
     emit_branch_counter(e, OFS(saturn_branches_taken));
     if (t->taken_kind == CB_TAKEN_RTN) {
         emit_inline_rstk_pop(e);
@@ -1524,10 +1523,8 @@ static void emit_compare_branch_tail(emit_ctx_t *e, const cb_targets_t *t) {
     }
     uint32_t br_end = emit_b_w_placeholder(e, -1);    /* unconditional skip past notaken */
 
-    /* --- notaken path --- */
+    /* --- notaken path: carry already stored above (was 0). --- */
     uint32_t L_notaken = e->pos;
-    emit_mov_imm32(e, 0, 0);
-    emit_strb_imm(e, 0, 4, OFS(carry));
     emit_branch_counter(e, OFS(saturn_branches_skipped));
     emit_set_r0_pc(e, t->notaken_pc);
 
