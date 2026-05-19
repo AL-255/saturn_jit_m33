@@ -1836,7 +1836,8 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
              *   local_exit: pop {r4, pc} */
             if (ops != 0) {
                 emit_ldr_imm(&e, 0, 4, OFS(saturn_ops));
-                if (ops <= 0xfff) emit_add_imm_t3_small(&e, 0, 0, (uint16_t)ops);
+                if (ops <= 0xff)      emit_adds_lo_imm8(&e, 0, (uint8_t)ops);
+                else if (ops <= 0xfff) emit_add_imm_t3_small(&e, 0, 0, (uint16_t)ops);
                 else { emit_mov_imm32(&e, 1, ops);
                        uint32_t hi = 0xEB00 | 0;
                        uint32_t lo = (0 << 12) | (0 << 8) | 1;
@@ -1845,29 +1846,32 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
             }
             emit_mov_imm32(&e, 0, next_pc & 0xFFFFFu);
             if (ops != 0) {
+                /* Load → SUBS (sets flags) → STR → BLT. SUBS is the narrow
+                 * T1 form (2 bytes) and sets N/Z so we don't need a CMP
+                 * before BLT. STR doesn't clobber flags. */
                 emit_ldr_imm(&e, 1, 4, OFS(budget_remaining));
-                if (ops <= 0xfff) emit_sub_imm_t3_small(&e, 1, 1, (uint16_t)ops);
-                else { emit_mov_imm32(&e, 2, ops);
-                       /* sub.w r1, r1, r2 (T3 S=0). hi=0xEBA0|Rn=1, lo=Rd=1, Rm=2 */
-                       uint32_t hi = 0xEBA0 | 1;
-                       uint32_t lo = (0 << 12) | (1 << 8) | 2;
-                       emit_w32(&e, (hi << 16) | lo); }
+                if (ops <= 0xff) {
+                    emit_subs_lo_imm8(&e, 1, (uint8_t)ops);
+                } else if (ops <= 0xfff) {
+                    emit_sub_imm_t3_small(&e, 1, 1, (uint16_t)ops);
+                } else {
+                    emit_mov_imm32(&e, 2, ops);
+                    /* subs.w r1, r1, r2 (T3 S=1). hi=0xEBB0|Rn=1, lo=Rd=1, Rm=2 */
+                    uint32_t hi = 0xEBB0 | 1;
+                    uint32_t lo = (0 << 12) | (1 << 8) | 2;
+                    emit_w32(&e, (hi << 16) | lo);
+                }
                 emit_str_imm(&e, 1, 4, OFS(budget_remaining));
             }
-            /* If ops == 0 we skip budget check entirely (block is a no-op).
-             * The bmi will use the flags from the last operation, which is
-             * the str above. STR doesn't set flags. We need a separate
-             * test. */
             if (ops != 0) {
-                /* We want to test if r1 < 0 (i.e., we already underflowed).
-                 * The subs set flags, but emit_sub_imm_t3_small uses SUBW
-                 * which doesn't set flags. Need an explicit test. Use
-                 * CMP r1, #0 then BLT, or test the sign bit. Simplest:
-                 * after the str, do "cmp r1, #0" then "bmi local_exit". */
-                emit_cmp_imm_t2(&e, 1, 0);
-                uint32_t br = emit_b_w_placeholder(&e, 0xB);   /* LT (signed) = 0xB? actually
-                                                                cond LT = 1011 = 0xB? wait
-                                                                cond MI = 0100 = 4, LT = 0xB */
+                /* For ops in [1, 0xff] SUBS already set the right flags.
+                 * For larger ops via SUBW (T4) flags aren't set — fall
+                 * back to a CMP. The hot path (ops ≤ 0xff) skips it. */
+                uint32_t br;
+                if (ops > 0xff && ops <= 0xfff) {
+                    emit_cmp_imm_t2(&e, 1, 0);
+                }
+                br = emit_b_w_placeholder(&e, 0xB);    /* cond LT */
                 /* chain */
                 emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
                 emit_ldr_imm(&e, 2, 2, 0);
