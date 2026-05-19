@@ -2171,27 +2171,27 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                 bool self_loop = false;
 #endif
                 if (ops != 0) {
-                    uint32_t br;
                     if (ops > 0xff && ops <= 0xfff) {
                         emit_cmp_imm_t2(&e, 1, 0);
                     }
-                    br = emit_b_w_placeholder(&e, 0xB);
                     if (self_loop) {
-                        /* Branch directly back to body start — no
-                         * patchable link target needed for self loops. */
-                        uint32_t b = emit_b_w_placeholder(&e, -1);
+                        /* One conditional backward branch: BGE body.
+                         * Saves the BLT-to-local-exit + unconditional B
+                         * body pair (two branches per iter → one). */
+                        uint32_t b = emit_b_w_placeholder(&e, 0xA); /* GE */
                         emit_patch_b_w(&e, b, body_off_hw);
+                        /* Falls through to local_exit on BGE-not-taken. */
                     } else {
-                        /* Record chain insn position so cache_finalize
-                         * can overwrite it with a direct B.W once the
-                         * target block is known. */
+                        /* Cross-chain: BLT to local_exit, then indirect
+                         * (later patched to direct B.W). */
+                        uint32_t br = emit_b_w_placeholder(&e, 0xB); /* LT */
                         chain_insn_off_hw = e.pos;
                         emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
                         emit_ldr_imm(&e, 2, 2, 0);
                         emit_bx(&e, 2);
+                        uint32_t local_exit_pos = e.pos;
+                        emit_patch_b_w(&e, br, local_exit_pos);
                     }
-                    uint32_t local_exit_pos = e.pos;
-                    emit_patch_b_w(&e, br, local_exit_pos);
                 } else {
                     if (self_loop) {
                         uint32_t b = emit_b_w_placeholder(&e, -1);
