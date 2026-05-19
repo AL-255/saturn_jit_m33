@@ -218,6 +218,23 @@ static void emit_inline_xchg_field_a(emit_ctx_t *e, int a_id, int b_id) {
 #define EMIT_ITTE_HS(e)   emit_hw((e), 0xBF26)
 #define EMIT_ITTE_LO(e)   emit_hw((e), 0xBF3A)
 
+/* CLZ Rd, Rm (T1): counts leading zeros, returns 32 if Rm == 0. */
+static void emit_clz(emit_ctx_t *e, int rd, int rm) {
+    uint32_t hi = 0xFAB0 | (rm & 0xf);
+    uint32_t lo = 0xF080 | ((rd & 0xf) << 8) | (rm & 0xf);
+    emit_w32(e, (hi << 16) | lo);
+}
+
+/* LSRS Rd, Rm, #imm5 (T1) — sets flags, low regs only. */
+static void emit_lsrs_lo_imm(emit_ctx_t *e, int rd, int rm, uint8_t imm5) {
+    emit_hw(e, 0x0800 | ((imm5 & 0x1f) << 6) | ((rm & 7) << 3) | (rd & 7));
+}
+
+/* ORRS Rdn, Rm (T1) — low regs. */
+static void emit_orrs_lo(emit_ctx_t *e, int rdn, int rm) {
+    emit_hw(e, 0x4300 | ((rm & 7) << 3) | (rdn & 7));
+}
+
 /* UBFX Rd, Rn, #lsb, #width  (T1) :
  *   1111 0011 110 Rn | 0 imm3 Rd imm2 0 widthm1
  * imm3:imm2 = lsb (5 bits, 0..31); widthm1 = width-1 (5 bits → width 1..32)
@@ -1139,6 +1156,19 @@ static void emit_pair_compare(emit_ctx_t *e, int a_reg, int b_reg, int field, co
     emit_bl_to(e, helper);
 }
 static void emit_zero_test(emit_ctx_t *e, int reg, int field, const void *helper) {
+#if JIT_OPT_INLINE_ZEROTEST
+    /* Inline only the A-field case (5 nibbles at a 4-aligned offset).
+     * Other fields fall back to the helper call. */
+    if (field == FS_A) {
+        uint16_t base = OFS_REG(reg);
+        emit_ldr_imm(e, 0, 4, base);         /* nibbles 0..3 packed */
+        emit_ldrb_smart(e, 1, 4, base + 4);   /* nibble 4 */
+        emit_orrs_lo(e, 0, 1);                /* r0 = combined, sets flags */
+        emit_clz(e, 0, 0);                    /* 32 if r0 was 0, else < 32 */
+        emit_lsrs_lo_imm(e, 0, 0, 5);         /* r0 = 1 iff all-zero, else 0 */
+        return;
+    }
+#endif
     emit_add_imm_t3_small(e, 0, 4, OFS_REG(reg));
     emit_mov_imm32(e, 1, field);
     emit_bl_to(e, helper);

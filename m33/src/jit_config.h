@@ -67,6 +67,19 @@
 #define JIT_OPT_FLAT_CARRY 1
 #endif
 
+/* Inline ?reg=0 / ?reg#0 A-field zero-test inside the compare-branch
+ * emitter, instead of calling reg_is_zero. Uses CLZ to turn "all
+ * nibbles 0" into a 0/1 condition without IT or branches.
+ *   ldr  r0, [r4, #base]
+ *   ldrb r1, [r4, #base+4]
+ *   orrs r0, r0, r1
+ *   clz  r0, r0          ; 32 iff r0 was 0, else < 32
+ *   lsrs r0, r0, #5      ; 1 iff was 0, else 0
+ * Helps countloop, which fires ?A=0 once per iter. */
+#ifndef JIT_OPT_INLINE_ZEROTEST
+#define JIT_OPT_INLINE_ZEROTEST 1
+#endif
+
 /* Move the saturn_ops += block_ops counter bump from JIT-emitted code
  * to the C dispatcher. Default OFF: measured neutral-to-slightly-
  * negative under QEMU (the dispatcher's added += costs as much as the
