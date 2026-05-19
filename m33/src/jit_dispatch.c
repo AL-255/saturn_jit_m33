@@ -64,9 +64,17 @@ typedef struct cache_link_meta_s {
                                  * `movw r2, ...`. 0 = no cross-chain to
                                  * patch (self-loop direct branch or dyn_end). */
     uintptr_t link_target;      /* patchable: next-block body|1 or stub */
+    uint32_t  ic_ret_pc;        /* cached dynamic return PC (0xFFFFFFFE if cold).
+                                 * For RTN-family blocks and compare-branches
+                                 * with RTN-taken side: the JIT-emitted block
+                                 * compares the popped/dynamic PC against this
+                                 * and chains directly to ic_ret_body on hit. */
+    uintptr_t ic_ret_body;      /* cached body addr | thumb-bit, or stub */
 } cache_link_meta_t;
 static cache_link_meta_t s_links[CACHE_SLOTS];
 #endif
+
+#define IC_RET_PC_COLD 0xFFFFFFFEu
 
 static cache_entry_t s_table[CACHE_SLOTS];
 static uint8_t      *s_code_buf;
@@ -154,6 +162,8 @@ static void reset_slots(void) {
         s_links[i].next_pc = DYN_NEXT_PC;
         s_links[i].body_off = 0;
         s_links[i].chain_insn_off = 0;
+        s_links[i].ic_ret_pc = IC_RET_PC_COLD;
+        s_links[i].ic_ret_body = stub_addr_thumb();
 #endif
     }
 }
@@ -204,6 +214,8 @@ static int cache_reserve(uint32_t pc) {
             s_links[idx].body_off = 0;
             s_links[idx].chain_insn_off = 0;
             s_links[idx].link_target = stub_addr_thumb();
+            s_links[idx].ic_ret_pc = IC_RET_PC_COLD;
+            s_links[idx].ic_ret_body = stub_addr_thumb();
             return idx;
         }
     }
@@ -284,10 +296,17 @@ interp_status_t jit_run(uint64_t budget) {
     saturn.budget_remaining = (int32_t)(budget > 0x7fffffff ? 0x7fffffff : budget);
 #endif
 
+#if JIT_OPT_BLOCK_LINK && JIT_OPT_RTN_INLINE_CACHE
+    /* Tracks the slot of the *previous* dyn_end fn() so we can fill its
+     * inline cache once we know which block its return PC dispatches to. */
+    int s_prev_dyn_slot = -1;
+#endif
+
     while (budget > 0 && status == INTERP_OK_BUDGET) {
         addr_t pc = saturn.pc;
         jit_block_fn_t fn = NULL;
         uint32_t block_ops = 0;
+        int found_slot = -1;
 
         if (s_mode == JIT_CACHE_ON) {
             int slot = cache_find(pc);
@@ -296,10 +315,26 @@ interp_status_t jit_run(uint64_t budget) {
                 fn = (jit_block_fn_t)
                     ((uintptr_t)(s_code_buf + (uint32_t)s_table[slot].code_off * 2) | 1u);
                 block_ops = s_table[slot].ops;
+                found_slot = slot;
             } else {
                 s_stats.cache_misses++;
             }
         }
+
+#if JIT_OPT_BLOCK_LINK && JIT_OPT_RTN_INLINE_CACHE
+        /* If the previous fn was a dyn_end block, fill its IC with the
+         * (pc, body) pair we just resolved. Stable across iterations for
+         * monomorphic call sites. */
+        if (s_prev_dyn_slot >= 0 && found_slot >= 0
+            && s_links[found_slot].body_off != 0) {
+            uintptr_t body = (uintptr_t)(s_code_buf
+                                         + (uint32_t)s_links[found_slot].body_off * 2)
+                             | 1u;
+            s_links[s_prev_dyn_slot].ic_ret_pc   = pc;
+            s_links[s_prev_dyn_slot].ic_ret_body = body;
+        }
+        s_prev_dyn_slot = -1;
+#endif
 
         if (!fn) {
             if (s_code_pos + 256 > s_code_cap) {
@@ -368,6 +403,14 @@ interp_status_t jit_run(uint64_t budget) {
         if (executed == 0) executed = block_ops;
 #endif
         if (budget >= executed) budget -= executed; else budget = 0;
+#if JIT_OPT_RTN_INLINE_CACHE
+        /* If the fn we just ran was a dyn_end block, remember its slot
+         * so the next iteration can fill its inline cache once we know
+         * the body its return PC actually dispatches to. */
+        if (found_slot >= 0 && s_links[found_slot].next_pc == DYN_NEXT_PC) {
+            s_prev_dyn_slot = found_slot;
+        }
+#endif
 #else
 #if JIT_OPT_BUDGET_DRIVEN_OPS
         /* Track budget delta for saturn_ops attribution. */

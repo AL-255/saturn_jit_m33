@@ -19,7 +19,8 @@
  *   2026-05-19 +SELF_LOOP_DIRECT_B  arith= 1.3 memmix= 2.5 calltree= 5.5 countloop= 4.1
  *   2026-05-19 +INLINE_RSTK         arith= 1.4 memmix= 2.6 calltree= 4.3 countloop= 4.7
  *   2026-05-19 +CB_CHAIN_NOTAKEN    arith= 1.4 memmix= 2.6 calltree= 4.1 countloop= 1.5
- *   2026-05-19 +PATCH_CROSS_CHAIN   arith= 1.4 memmix= 2.6 calltree= 3.9 countloop= 1.6   <- last commit
+ *   2026-05-19 +PATCH_CROSS_CHAIN   arith= 1.4 memmix= 2.6 calltree= 3.9 countloop= 1.6
+ *   2026-05-19 +RTN_INLINE_CACHE    arith= 1.4 memmix= 2.6 calltree= 2.9 countloop= 1.5   <- last commit
  */
 
 #ifndef JIT_CONFIG_H
@@ -244,6 +245,24 @@
  * that dominates calltree's iter overhead. */
 #ifndef JIT_OPT_PATCH_CROSS_CHAIN
 #define JIT_OPT_PATCH_CROSS_CHAIN 1
+#endif
+
+/* Polymorphic inline cache for dyn_end blocks (RTN family + compare-
+ * branches with RTN taken). After the helper / inline_rstk_pop sets
+ * r0 to the dynamic return PC, the JIT-emitted block checks r0 against
+ * a per-slot cached "last observed return PC". On a hit it branches
+ * directly into the cached body. On a miss it falls through to the
+ * normal dispatcher exit.
+ *
+ * The dispatcher updates the IC after each dyn_end fn() return: it
+ * already does a cache_find on the new saturn.pc, so the cost is one
+ * extra store pair per dyn_end iteration. For monomorphic call sites
+ * (most real-world RTNs) this is ~100% hit rate.
+ *
+ * Big win for calltree where the sub at 0x100 is called from a single
+ * place and always returns to pc=0x0f. */
+#ifndef JIT_OPT_RTN_INLINE_CACHE
+#define JIT_OPT_RTN_INLINE_CACHE 1
 #endif
 
 /* Update saturn.saturn_ops in the C dispatcher (from the budget delta

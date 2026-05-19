@@ -1978,6 +1978,58 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
     /* Flush any pending carry held in r2 from inline arith. */
     emit_flush_carry(&e);
     if (dyn_end) {
+#if JIT_OPT_RTN_INLINE_CACHE && JIT_OPT_BLOCK_LINK
+        /* Polymorphic inline cache for the dynamic return PC. r0 already
+         * holds the popped PC. Compare against the per-slot ic_ret_pc;
+         * on hit, credit saturn_ops, decrement budget, and branch
+         * directly into the cached body. On miss, fall through to the
+         * standard dyn_end pop below (which also credits saturn_ops).
+         *
+         * Slot layout (cache_link_meta_t):
+         *   +0  next_pc          +4  body_off, chain_insn_off
+         *   +8  link_target  <-- caller's link_target arg
+         *  +12  ic_ret_pc       +16 ic_ret_body
+         *
+         * Budget overshoot on the IC-hit path is bounded: each chained
+         * block's linked tail decrements budget too, and eventually the
+         * BLT fires inside one of them — at worst we overshoot by one
+         * RTN block's ops. */
+        if (link_target) {
+            uint32_t ic_pc_addr = (uint32_t)(uintptr_t)link_target + 4;
+            emit_mov_imm32(&e, 1, ic_pc_addr);
+            emit_ldr_imm(&e, 2, 1, 0);                      /* r2 = ic_ret_pc */
+            emit_hw(&e, 0x4280 | (2 << 3) | 0);            /* cmp r0, r2 */
+            uint32_t br_miss = emit_b_w_placeholder(&e, 1);/* BNE → miss */
+            if (ops != 0) {
+                /* saturn_ops += ops (use r3, keep r0 intact for the miss
+                 * fallback). */
+                emit_ldr_imm(&e, 3, 4, OFS(saturn_ops));
+                if (ops <= 0xff)      emit_adds_lo_imm8(&e, 3, (uint8_t)ops);
+                else if (ops <= 0xfff) emit_add_imm_t3_small(&e, 3, 3, (uint16_t)ops);
+                else { emit_mov_imm32(&e, 2, ops);
+                       uint32_t hi = 0xEB00 | 3;
+                       uint32_t lo = (0 << 12) | (3 << 8) | 2;
+                       emit_w32(&e, (hi << 16) | lo); }
+                emit_str_imm(&e, 3, 4, OFS(saturn_ops));
+                /* budget -= ops */
+                emit_ldr_imm(&e, 3, 4, OFS(budget_remaining));
+                if (ops <= 0xff)      emit_subs_lo_imm8(&e, 3, (uint8_t)ops);
+                else if (ops <= 0xfff) emit_sub_imm_t3_small(&e, 3, 3, (uint16_t)ops);
+                else { emit_mov_imm32(&e, 2, ops);
+                       uint32_t hi = 0xEBA0 | 3;
+                       uint32_t lo = (0 << 12) | (3 << 8) | 2;
+                       emit_w32(&e, (hi << 16) | lo); }
+                emit_str_imm(&e, 3, 4, OFS(budget_remaining));
+            }
+            /* Chain via ic_ret_body. */
+            emit_ldr_imm(&e, 2, 1, 4);
+            emit_bx(&e, 2);
+            uint32_t miss_pos = e.pos;
+            emit_patch_b_w(&e, br_miss, miss_pos);
+            /* Miss path falls through to the standard dyn_end emit below
+             * which credits saturn_ops via r1 and pops. */
+        }
+#endif
 #if JIT_OPT_BUDGET_DRIVEN_OPS
         /* Dispatcher derives saturn_ops += executed from the budget
          * delta, so the JIT just needs to subtract ops from budget. r0
