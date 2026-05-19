@@ -52,6 +52,12 @@
  * block exit. Reset at every translate entry. */
 static bool s_carry_dirty_r2;
 
+/* Tracks ops translated so far in the current block (not counting the
+ * op currently being translated). Used by chain-friendly compare-branch
+ * emit so the taken-exit can credit saturn_ops correctly without
+ * waiting for the rest of the block to translate. */
+static uint32_t s_block_ops_so_far;
+
 /* Forward decl for use in inline arith emits below. */
 static void emit_strb_smart(emit_ctx_t *e, int rt, int rn, uint16_t imm);
 
@@ -1423,6 +1429,76 @@ static void emit_branch_counter(emit_ctx_t *e, uint16_t ofs) {
     emit_str_imm(e, 1, 4, ofs);
 }
 
+#if JIT_OPT_CB_CHAIN_NOTAKEN
+/* Chainable compare-branch tail. With r0 = 0/1 holding the condition,
+ * emit:
+ *   cmp r0, #0
+ *   beq notaken_label
+ *   ; taken path: set carry=1, bump br_taken, r0=taken_pc,
+ *   ;             then immediate dyn-exit (saturn_ops += K, budget -= K, pop)
+ *   notaken_label: carry=0, bump br_skipped ; fall through
+ *
+ * K = s_block_ops_so_far + 1 (this op is the K-th in the block). The
+ * block continues translating past the compare-branch; subsequent ops
+ * (typically a GOTO back to loop top) become the not-taken chain
+ * target. Returns BLK_CONTINUE — the translator just keeps going.
+ *
+ * Caller must check t->taken_kind == CB_TAKEN_STATIC before calling
+ * this (RTN-style dynamic taken targets still use the dyn_end path). */
+static void emit_compare_branch_tail_chainable(emit_ctx_t *e, const cb_targets_t *t) {
+    emit_cmp_imm_t2(e, 0, 0);
+    uint32_t br_notaken = emit_b_w_placeholder(e, 0);   /* EQ → notaken */
+
+    /* --- taken path: set carry=1, bump br_taken, r0=taken_pc --- */
+    emit_mov_imm32(e, 0, 1);
+    emit_strb_imm(e, 0, 4, OFS(carry));
+    emit_branch_counter(e, OFS(saturn_branches_taken));
+    emit_set_r0_pc(e, t->taken_pc);
+
+    /* Immediate dyn-exit. ops_credit = s_block_ops_so_far + 1 (counting
+     * this compare-branch as the K-th op of the block). r0 must
+     * survive — use r1 for the saturn_ops bump and r2 for budget. */
+    uint32_t ops_credit = s_block_ops_so_far + 1;
+    if (ops_credit != 0) {
+        emit_ldr_imm(e, 1, 4, OFS(saturn_ops));
+        if (ops_credit <= 0xff) {
+            emit_adds_lo_imm8(e, 1, (uint8_t)ops_credit);
+        } else if (ops_credit <= 0xfff) {
+            emit_add_imm_t3_small(e, 1, 1, (uint16_t)ops_credit);
+        } else {
+            emit_mov_imm32(e, 2, ops_credit);
+            uint32_t hi = 0xEB00 | 1;
+            uint32_t lo = (0 << 12) | (1 << 8) | 2;
+            emit_w32(e, (hi << 16) | lo);
+        }
+        emit_str_imm(e, 1, 4, OFS(saturn_ops));
+
+        emit_ldr_imm(e, 2, 4, OFS(budget_remaining));
+        if (ops_credit <= 0xff) {
+            emit_subs_lo_imm8(e, 2, (uint8_t)ops_credit);
+        } else if (ops_credit <= 0xfff) {
+            emit_sub_imm_t3_small(e, 2, 2, (uint16_t)ops_credit);
+        } else {
+            emit_mov_imm32(e, 3, ops_credit);
+            uint32_t hi = 0xEBA0 | 2;
+            uint32_t lo = (0 << 12) | (2 << 8) | 3;
+            emit_w32(e, (hi << 16) | lo);
+        }
+        emit_str_imm(e, 2, 4, OFS(budget_remaining));
+    }
+    emit_hw(e, EPILOGUE_POP_OP);
+
+    /* --- notaken path --- */
+    uint32_t L_notaken = e->pos;
+    emit_mov_imm32(e, 0, 0);
+    emit_strb_imm(e, 0, 4, OFS(carry));
+    emit_branch_counter(e, OFS(saturn_branches_skipped));
+
+    emit_patch_b_w(e, br_notaken, L_notaken);
+    discard_pending_carry();
+}
+#endif
+
 /* After the condition is in r0 (0/1), emit the taken/not-taken
  * dispatch. Returns BLK_END_DYN (r0 holds next PC at exit). */
 static void emit_compare_branch_tail(emit_ctx_t *e, const cb_targets_t *t) {
@@ -1522,6 +1598,12 @@ static block_step_t translate_group_8A(emit_ctx_t *e, addr_t pc, uint32_t *consu
         t.taken_pc = (pc + sext_nib(dd, 2) + 3) & 0xFFFFFu;
     }
     t.notaken_pc = (pc + 5) & 0xFFFFFu;
+#if JIT_OPT_CB_CHAIN_NOTAKEN
+    if (t.taken_kind == CB_TAKEN_STATIC) {
+        emit_compare_branch_tail_chainable(e, &t);
+        return BLK_CONTINUE;
+    }
+#endif
     emit_compare_branch_tail(e, &t);
     return BLK_END_DYN;
 }
@@ -1791,6 +1873,10 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
         addr_t pc_after = pc;
         uint32_t consumed = 0;
 
+        /* Used by chainable compare-branch to credit saturn_ops for an
+         * inline taken-exit. */
+        s_block_ops_so_far = ops;
+
         switch (n0) {
         case 0x0: s = translate_group_0(&e, pc, &next_pc); pc_after = pc + ((fetch_nib(pc+1) == 0xE) ? 4 : 2);
                   have_next = (s == BLK_END || s == BLK_END_DYN);
@@ -1819,7 +1905,7 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                 pc_after = pc;
             } else if (n1 == 0xA) {
                 s = translate_group_8A(&e, pc, &consumed);
-                pc_after = pc;
+                pc_after = (s == BLK_CONTINUE) ? pc + consumed : pc;
             } else if (n1 == 0xB) {
                 s = translate_group_8B(&e, pc, &consumed);
                 pc_after = pc;

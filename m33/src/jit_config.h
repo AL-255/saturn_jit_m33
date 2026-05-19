@@ -17,7 +17,8 @@
  *   2026-05-19 +INLINE_INCDEC_eebs  arith= 4.3 memmix= 5.0 calltree= 7.8 countloop= 7.0
  *   2026-05-19 +BLOCK_LINK          arith= 1.6 memmix= 3.7 calltree= 5.5 countloop= 4.3
  *   2026-05-19 +SELF_LOOP_DIRECT_B  arith= 1.3 memmix= 2.5 calltree= 5.5 countloop= 4.1
- *   2026-05-19 +INLINE_RSTK         arith= 1.4 memmix= 2.6 calltree= 4.3 countloop= 4.7   <- last commit
+ *   2026-05-19 +INLINE_RSTK         arith= 1.4 memmix= 2.6 calltree= 4.3 countloop= 4.7
+ *   2026-05-19 +CB_CHAIN_NOTAKEN    arith= 1.4 memmix= 2.6 calltree= 4.1 countloop= 1.5   <- last commit
  */
 
 #ifndef JIT_CONFIG_H
@@ -211,6 +212,21 @@
  * patchable indirect path. */
 #ifndef JIT_OPT_SELF_LOOP_DIRECT_BRANCH
 #define JIT_OPT_SELF_LOOP_DIRECT_BRANCH 1
+#endif
+
+/* For static-target compare-branches (?A=0, ?A=B, etc. — group 8A with
+ * non-RTN taken side) treat the *not-taken* fall-through as the block's
+ * static next_pc instead of returning BLK_END_DYN to the dispatcher on
+ * both sides. The taken path becomes an inline exit (bump ops, sub
+ * budget, pop {r4, pc}); the not-taken path continues translating past
+ * the compare-branch and can chain through the linked tail.
+ *
+ * Big win for countloop: ?A=0 fires every inner iter; before this the
+ * dispatcher round-tripped on every iteration, now 15/16 take the
+ * chain path and only 1/16 (when A finally hits zero) exits to the
+ * dispatcher. */
+#ifndef JIT_OPT_CB_CHAIN_NOTAKEN
+#define JIT_OPT_CB_CHAIN_NOTAKEN 1
 #endif
 
 /* Update saturn.saturn_ops in the C dispatcher (from the budget delta
