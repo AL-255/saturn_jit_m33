@@ -16,7 +16,8 @@
  *   2026-05-19 +INLINE_AZERO_COPY   arith= 6.7 memmix= 6.0 calltree=12.5 countloop=10.7
  *   2026-05-19 +INLINE_INCDEC_eebs  arith= 4.3 memmix= 5.0 calltree= 7.8 countloop= 7.0
  *   2026-05-19 +BLOCK_LINK          arith= 1.6 memmix= 3.7 calltree= 5.5 countloop= 4.3
- *   2026-05-19 +SELF_LOOP_DIRECT_B  arith= 1.3 memmix= 2.5 calltree= 5.5 countloop= 4.1   <- last commit
+ *   2026-05-19 +SELF_LOOP_DIRECT_B  arith= 1.3 memmix= 2.5 calltree= 5.5 countloop= 4.1
+ *   2026-05-19 +INLINE_RSTK         arith= 1.4 memmix= 2.6 calltree= 4.3 countloop= 4.7   <- last commit
  */
 
 #ifndef JIT_CONFIG_H
@@ -130,13 +131,13 @@
 
 /* Inline rstk_push / rstk_pop in GOSBVL / GOSUBL / RTN / RTNSC / RTNCC.
  *
- * Default OFF — A/B benchmark under QEMU shows calltree -7% (clear win,
- * since calltree fires 1 push + 1 pop per iter) but countloop +22%
- * regression (which doesn't even use RTN/RSTK). The regression looks
- * QEMU-specific: countloop's emitted JIT code is bytewise identical
- * (1022 bytes either way), but the C dispatcher binary grows by 308
- * bytes which shifts TCG translation-cache layout and changes timing
- * on the host. On real M33 hardware the inline win should be uniform.
+ * Default ON: re-measured after block linking and self-loop direct
+ * branch landed. calltree drops from 5.65 → 4.34 ms (-23%) — clear win
+ * for the call/return-heavy workload. countloop regresses ~12% under
+ * QEMU TCG even though its emitted JIT code is bytewise identical
+ * (1050 bytes either way), purely because the dispatcher binary grows
+ * and shifts TCG cache layout. Net across all four workloads: -5.5%.
+ * On real M33 hardware the inline win should be uniformly positive.
  *
  * Fast path (rstk_ptr in [0, 6]):
  *   push: ptr++; rstk[ptr] = addr
@@ -144,7 +145,7 @@
  * Overflow (rstk_ptr == 7) and underflow (rstk_ptr < 0) fall back to
  * the helper to preserve x48ng's shift-drop / return-0 semantics. */
 #ifndef JIT_OPT_INLINE_RSTK
-#define JIT_OPT_INLINE_RSTK 0
+#define JIT_OPT_INLINE_RSTK 1
 #endif
 
 /* Inline 5-nibble DAT load/store (group 14x W-field). Skips the
