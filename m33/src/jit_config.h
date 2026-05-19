@@ -152,13 +152,21 @@
  * and offset ≤ 31). Halves the size of inline-arith loads/stores when
  * the target register is REG_A or REG_B (offsets 0..20).
  *
- * Default OFF: produces mixed results under QEMU's TCG — arith is 10%
- * faster but calltree is 50% slower (consistent across 3+ runs). On
- * real M33 hardware T1 and T2 ldrb/strb cost the same cycle, so this
- * should be safe to enable on hardware; only QEMU benchmarks see the
- * regression. Toggle to 1 for arith-heavy workloads. */
+ * Default OFF: under QEMU TCG the per-workload picture is mixed —
+ * arith −22%, memmix +10%, calltree ~same, countloop +15%. The arith
+ * regression seems to come from its dense mix of ADD/SUB (which gain
+ * the most from T1 but apparently translate slowly under TCG) plus
+ * INC/DEC ops. INC/DEC alone is a clean win — see JIT_OPT_NARROW_INCDEC. */
 #ifndef JIT_OPT_NARROW_LDST
 #define JIT_OPT_NARROW_LDST 0
+#endif
+
+/* Narrow LDR/STRB only inside inline INC/DEC (a subset of NARROW_LDST).
+ * INC/DEC's loads/stores touch one register's nibbles; for REG_A or
+ * REG_B that fits T1 cleanly without the QEMU regression that ADD/SUB
+ * shows. Default ON. */
+#ifndef JIT_OPT_NARROW_INCDEC
+#define JIT_OPT_NARROW_INCDEC 1
 #endif
 
 #endif

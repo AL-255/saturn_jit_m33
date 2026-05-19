@@ -170,6 +170,22 @@ static void emit_strb_smart(emit_ctx_t *e, int rt, int rn, uint16_t imm) {
     emit_strb_imm(e, rt, rn, imm);
 }
 
+/* INC/DEC-specific narrow variants: same logic as _smart but gated on
+ * JIT_OPT_NARROW_INCDEC. Used only inline_inc_a / inline_dec_a so the
+ * arith regression we see when narrowing ADD/SUB doesn't bite. */
+static void emit_ldrb_incdec(emit_ctx_t *e, int rt, int rn, uint16_t imm) {
+#if JIT_OPT_NARROW_INCDEC
+    if (rt <= 7 && rn <= 7 && imm <= 31) { emit_ldrb_lo(e, rt, rn, (uint8_t)imm); return; }
+#endif
+    emit_ldrb_imm(e, rt, rn, imm);
+}
+static void emit_strb_incdec(emit_ctx_t *e, int rt, int rn, uint16_t imm) {
+#if JIT_OPT_NARROW_INCDEC
+    if (rt <= 7 && rn <= 7 && imm <= 31) { emit_strb_lo(e, rt, rn, (uint8_t)imm); return; }
+#endif
+    emit_strb_imm(e, rt, rn, imm);
+}
+
 static void emit_inline_zero_field_a(emit_ctx_t *e, int reg_id) {
     uint16_t base = OFS_REG(reg_id);
     emit_mov_lo_imm8(e, 0, 0);
@@ -323,19 +339,19 @@ static void emit_inline_inc_a(emit_ctx_t *e, int reg_id) {
     uint32_t cbzs[4];
     int cbz_count = 0;
     for (int i = 0; i < 5; i++) {
-        emit_ldrb_smart(e, 0, 4, base + i);
+        emit_ldrb_incdec(e, 0, 4, base + i);
         emit_hw(e, 0x1800 | (2 << 6) | (0 << 3) | 0);    /* adds r0, r0, r2 */
         emit_cmp_imm_t2(e, 0, 16);
         EMIT_ITTE_HS(e);
         emit_subs_lo_imm8(e, 0, 16);
         emit_mov_lo_imm8(e, 2, 1);
         emit_mov_lo_imm8(e, 2, 0);
-        emit_strb_smart(e, 0, 4, base + i);
+        emit_strb_incdec(e, 0, 4, base + i);
         if (i < 4) cbzs[cbz_count++] = emit_cbz_placeholder(e, 2);
     }
     uint32_t tail = e->pos;
 #if !JIT_OPT_DEFER_CARRY
-    emit_strb_smart(e, 2, 4, OFS(carry));
+    emit_strb_incdec(e, 2, 4, OFS(carry));
 #endif
     for (int k = 0; k < cbz_count; k++) emit_patch_cbz(e, cbzs[k], tail);
     s_carry_dirty_r2 = true;
@@ -466,18 +482,18 @@ static void emit_inline_dec_a(emit_ctx_t *e, int reg_id) {
     uint32_t cbzs[4];
     int cbz_count = 0;
     for (int i = 0; i < 5; i++) {
-        emit_ldrb_smart(e, 0, 4, base + i);
+        emit_ldrb_incdec(e, 0, 4, base + i);
         emit_hw(e, 0x1A00 | (2 << 6) | (0 << 3) | 0);   /* subs r0, r0, r2 */
         EMIT_ITTE_LO(e);
-        emit_adds_lo_imm8(e, 0, 16);                     /* LO: r0 += 16 */
-        emit_mov_lo_imm8(e, 2, 1);                       /* LO: borrow */
-        emit_mov_lo_imm8(e, 2, 0);                       /* HS: no borrow */
-        emit_strb_smart(e, 0, 4, base + i);
+        emit_adds_lo_imm8(e, 0, 16);
+        emit_mov_lo_imm8(e, 2, 1);
+        emit_mov_lo_imm8(e, 2, 0);
+        emit_strb_incdec(e, 0, 4, base + i);
         if (i < 4) cbzs[cbz_count++] = emit_cbz_placeholder(e, 2);
     }
     uint32_t tail = e->pos;
 #if !JIT_OPT_DEFER_CARRY
-    emit_strb_smart(e, 2, 4, OFS(carry));
+    emit_strb_incdec(e, 2, 4, OFS(carry));
 #endif
     for (int k = 0; k < cbz_count; k++) emit_patch_cbz(e, cbzs[k], tail);
     s_carry_dirty_r2 = true;
