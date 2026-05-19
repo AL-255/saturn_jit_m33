@@ -1,0 +1,52 @@
+--- a/src/ui4x/src/sdl.c
++++ b/src/ui4x/src/sdl.c
+@@ -958,7 +958,10 @@ static void _draw_serial_devices_path( void )
+
+ static int sdl_emulator_press_key( int hpkey )
+ {
+-    if ( hpkey == -1 || ui4x_emulator_api.is_key_pressed( hpkey ) )
++    int already = hpkey != -1 ? ui4x_emulator_api.is_key_pressed( hpkey ) : -1;
++    if ( getenv( "X48NG_DEBUG_SDL_EVENTS" ) )
++        fprintf( stderr, "[sdl] press_key hpkey=%d already_pressed=%d\n", hpkey, already );
++    if ( hpkey == -1 || already )
+         return -1;
+
+     ui4x_emulator_api.press_key( hpkey );
+@@ -969,7 +972,10 @@ static int sdl_emulator_press_key( int hpkey )
+
+ static int sdl_emulator_release_key( int hpkey )
+ {
+-    if ( hpkey == -1 || !ui4x_emulator_api.is_key_pressed( hpkey ) )
++    int pressed = hpkey != -1 ? ui4x_emulator_api.is_key_pressed( hpkey ) : -1;
++    if ( getenv( "X48NG_DEBUG_SDL_EVENTS" ) )
++        fprintf( stderr, "[sdl] release_key hpkey=%d was_pressed=%d\n", hpkey, pressed );
++    if ( hpkey == -1 || !pressed )
+         return -1;
+
+     ui4x_emulator_api.release_key( hpkey );
+@@ -1085,6 +1091,9 @@ void sdl_ui4x_handle_pending_inputs( void )
+
+     // Iterate as long as there are events
+     while ( SDL_PollEvent( &event ) ) {
++        if ( getenv( "X48NG_DEBUG_SDL_EVENTS" ) )
++            fprintf( stderr, "[sdl] event type=0x%x key=0x%x\n", (unsigned)event.type,
++                     ( event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP ) ? (unsigned)EVENT_KEY( event ) : 0u );
+         switch ( event.type ) {
+             case SDL_EVENT_QUIT:
+                 // please_exit = true;
+@@ -1188,6 +1197,15 @@ void sdl_ui4x_init( void )
+         exit( 1 );
+     }
+
++#ifndef HAS_SDL2
++    /* macOS: terminal-launched SDL3 apps don't automatically activate as
++     * the foreground app, so the window appears but keystrokes go to
++     * Terminal. Raise the window + activate so it can receive keyboard
++     * focus without the user having to click it first. */
++    SDL_RaiseWindow( window );
++    SDL_SetWindowKeyboardGrab( window, false );
++#endif
++
+     renderer = CREATE_RENDERER( window );
+     if ( renderer == NULL )
+         exit( 2 );

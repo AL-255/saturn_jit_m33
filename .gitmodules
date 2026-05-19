@@ -1,0 +1,3 @@
+[submodule "x48ng"]
+	path = x48ng
+	url = https://codeberg.org/gwh/x48ng.git
