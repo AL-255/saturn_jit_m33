@@ -126,6 +126,25 @@
 #define JIT_OPT_INLINE_ZEROTEST 1
 #endif
 
+/* Inline rstk_push / rstk_pop in GOSBVL / GOSUBL / RTN / RTNSC / RTNCC.
+ *
+ * Default OFF — A/B benchmark under QEMU shows calltree -7% (clear win,
+ * since calltree fires 1 push + 1 pop per iter) but countloop +22%
+ * regression (which doesn't even use RTN/RSTK). The regression looks
+ * QEMU-specific: countloop's emitted JIT code is bytewise identical
+ * (1022 bytes either way), but the C dispatcher binary grows by 308
+ * bytes which shifts TCG translation-cache layout and changes timing
+ * on the host. On real M33 hardware the inline win should be uniform.
+ *
+ * Fast path (rstk_ptr in [0, 6]):
+ *   push: ptr++; rstk[ptr] = addr
+ *   pop:  result = rstk[ptr]; ptr--
+ * Overflow (rstk_ptr == 7) and underflow (rstk_ptr < 0) fall back to
+ * the helper to preserve x48ng's shift-drop / return-0 semantics. */
+#ifndef JIT_OPT_INLINE_RSTK
+#define JIT_OPT_INLINE_RSTK 0
+#endif
+
 /* Inline 5-nibble DAT load/store (group 14x W-field). Skips the
  * jit_dat_load_w / jit_dat_store_w helper call by computing
  * &ram[d - ram_base] inline and transferring 4 + 1 nibbles.

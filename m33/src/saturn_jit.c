@@ -70,6 +70,101 @@ static void emit_flush_carry(emit_ctx_t *e) {
  * clear the dirty flag without emitting a store. */
 static void discard_pending_carry(void) { s_carry_dirty_r2 = false; }
 
+/* Inline rstk_pop: result in r0. Assumes r4 = &saturn.
+ *
+ *   ldrsb r0, [r4, #OFS(rstk_ptr)]   ; signed load of int8 ptr
+ *   cmp   r0, #0
+ *   blt   underflow_return_0
+ *   mov   r1, r0                     ; save old ptr
+ *   subs  r0, r0, #1                 ; new ptr = old - 1
+ *   strb  r0, [r4, #OFS(rstk_ptr)]
+ *   lsls  r1, r1, #2                 ; ptr * 4 (entry size)
+ *   adds  r1, r1, #OFS(rstk)         ; byte offset into saturn
+ *   ldr   r0, [r4, r1]               ; r0 = rstk[old_ptr]
+ *   b     done
+ * underflow:
+ *   movs  r0, #0
+ * done:
+ */
+static void emit_inline_rstk_pop(emit_ctx_t *e) {
+#if !JIT_OPT_INLINE_RSTK
+    emit_mov_any(e, 0, 4);
+    emit_bl_to(e, (const void *)jit_rstk_pop);
+    return;
+#endif
+    /* LDRSB Rt, [Rn, #imm12] T2: 1111 1001 1001 Rn | Rt imm12 */
+    {
+        uint32_t hi = 0xF990 | 4;             /* Rn = 4 */
+        uint32_t lo = (0 << 12) | OFS(rstk_ptr);
+        emit_w32(e, (hi << 16) | lo);          /* ldrsb r0, [r4, #OFS(rstk_ptr)] */
+    }
+    emit_cmp_imm_t2(e, 0, 0);                   /* cmp r0, #0 */
+    /* b.w lt to underflow target — patched later. */
+    uint32_t br_underflow = emit_b_w_placeholder(e, 0xB);   /* cond LT */
+    /* fast path */
+    emit_movs_lo(e, 1, 0);                      /* mov r1, r0 (save old ptr) */
+    emit_subs_lo_lo_imm3(e, 0, 0, 1);           /* subs r0, r0, #1 */
+    emit_strb_imm(e, 0, 4, OFS(rstk_ptr));
+    /* lsls r1, r1, #2  (T1: 0000 0 imm5 Rm Rd; for r1, imm=2 → 0x0089) */
+    emit_hw(e, 0x0000 | (2 << 6) | (1 << 3) | 1);  /* lsls r1, r1, #2 */
+    /* addw r1, r1, #OFS(rstk)  (T4 ADD imm12 small via emit_add_imm_t3_small) */
+    emit_add_imm_t3_small(e, 1, 1, OFS(rstk));
+    /* ldr.w r0, [r4, r1] — T2 LDR register: 1111 1000 0101 Rn | Rt 000000 type Rm
+     * Encoding: hi = 0xF850 | Rn, lo = (Rt<<12) | (imm2<<4) | Rm (with type=00 LSL, shift=0).
+     * For ldr r0, [r4, r1]: Rn=4, Rt=0, Rm=1. */
+    {
+        uint32_t hi = 0xF850 | 4;
+        uint32_t lo = (0 << 12) | (0 << 4) | 1;
+        emit_w32(e, (hi << 16) | lo);
+    }
+    uint32_t br_done = emit_b_w_placeholder(e, -1);
+    uint32_t L_underflow = e->pos;
+    emit_mov_lo_imm8(e, 0, 0);                   /* movs r0, #0 */
+    uint32_t L_done = e->pos;
+    emit_patch_b_w(e, br_underflow, L_underflow);
+    emit_patch_b_w(e, br_done, L_done);
+}
+
+/* Inline rstk_push: pushes r1 onto the stack. Assumes r4 = &saturn.
+ * For overflow (ptr already at 7), falls back to the helper (which
+ * implements the shift-drop semantics from x48ng). */
+static void emit_inline_rstk_push(emit_ctx_t *e) {
+#if !JIT_OPT_INLINE_RSTK
+    /* Caller has set r1 = addr; we still need r0 = &saturn. */
+    emit_mov_any(e, 0, 4);
+    emit_bl_to(e, (const void *)jit_rstk_push);
+    return;
+#endif
+    /* r4 = &saturn, r1 = addr already set by caller. */
+    {
+        uint32_t hi = 0xF990 | 4;
+        uint32_t lo = (2 << 12) | OFS(rstk_ptr);
+        emit_w32(e, (hi << 16) | lo);              /* ldrsb r2, [r4, #OFS(rstk_ptr)] */
+    }
+    emit_adds_lo_lo_imm3(e, 2, 2, 1);              /* adds r2, r2, #1 */
+    emit_cmp_imm_t2(e, 2, NB_RSTK);                 /* cmp r2, #8 */
+    uint32_t br_overflow = emit_b_w_placeholder(e, 0xA);  /* cond GE */
+    /* fast path */
+    emit_strb_imm(e, 2, 4, OFS(rstk_ptr));
+    /* lsls r2, r2, #2 — encoding 0x0000 | (2<<6) | (2<<3) | 2 = 0x0092 */
+    emit_hw(e, 0x0000 | (2 << 6) | (2 << 3) | 2);
+    emit_add_imm_t3_small(e, 2, 2, OFS(rstk));      /* addw r2, r2, #OFS(rstk) */
+    /* str r1, [r4, r2] : T2 STR register. hi = 0xF840 | Rn, lo = (Rt<<12) | (imm2<<4) | Rm */
+    {
+        uint32_t hi = 0xF840 | 4;
+        uint32_t lo = (1 << 12) | (0 << 4) | 2;
+        emit_w32(e, (hi << 16) | lo);
+    }
+    uint32_t br_done = emit_b_w_placeholder(e, -1);
+    uint32_t L_overflow = e->pos;
+    /* Fallback: helper expects r0 = &saturn, r1 = addr (already set). */
+    emit_mov_any(e, 0, 4);
+    emit_bl_to(e, (const void *)jit_rstk_push);
+    uint32_t L_done = e->pos;
+    emit_patch_b_w(e, br_overflow, L_overflow);
+    emit_patch_b_w(e, br_done, L_done);
+}
+
 /* Stage-2 op categories we know how to translate. */
 typedef enum {
     BLK_CONTINUE,    /* op translated, keep going */
@@ -800,24 +895,21 @@ static block_step_t translate_group_0(emit_ctx_t *e, addr_t pc, addr_t *out_next
     int n1 = fetch_nib(pc + 1);
     switch (n1) {
     case 0x0: { /* RTNSXM : ST[XM]=1; PC = pop_rstk() */
-        emit_flush_carry(e);  /* RTN preserves carry; BL clobbers r2 */
+        emit_flush_carry(e);
         emit_mov_imm32(e, 0, 1);
         emit_strb_imm(e, 0, 4, OFS(st));
-        emit_mov_any(e, 0, 4);
-        emit_bl_to(e, (const void *)jit_rstk_pop);
+        emit_inline_rstk_pop(e);
         *out_next = 0;
         return BLK_END_DYN;
     }
     case 0x1: { /* RTN */
         emit_flush_carry(e);
-        emit_mov_any(e, 0, 4);
-        emit_bl_to(e, (const void *)jit_rstk_pop);
+        emit_inline_rstk_pop(e);
         *out_next = 0;
         return BLK_END_DYN;
     }
     case 0x2: { /* RTNSC : pop, carry=1 */
-        emit_mov_any(e, 0, 4);
-        emit_bl_to(e, (const void *)jit_rstk_pop);
+        emit_inline_rstk_pop(e);
         emit_mov_imm32(e, 1, 1);
         emit_strb_imm(e, 1, 4, OFS(carry));
         discard_pending_carry();
@@ -825,8 +917,7 @@ static block_step_t translate_group_0(emit_ctx_t *e, addr_t pc, addr_t *out_next
         return BLK_END_DYN;
     }
     case 0x3: { /* RTNCC : pop, carry=0 */
-        emit_mov_any(e, 0, 4);
-        emit_bl_to(e, (const void *)jit_rstk_pop);
+        emit_inline_rstk_pop(e);
         emit_mov_imm32(e, 1, 0);
         emit_strb_imm(e, 1, 4, OFS(carry));
         discard_pending_carry();
@@ -875,8 +966,7 @@ static block_step_t translate_group_0(emit_ctx_t *e, addr_t pc, addr_t *out_next
         return BLK_CONTINUE;
     case 0xF: /* RTI : pop and resume */
         emit_flush_carry(e);
-        emit_mov_any(e, 0, 4);
-        emit_bl_to(e, (const void *)jit_rstk_pop);
+        emit_inline_rstk_pop(e);
         *out_next = 0;
         return BLK_END_DYN;
     default:
@@ -1188,10 +1278,8 @@ static block_step_t translate_group_8_branch(emit_ctx_t *e, addr_t pc, addr_t *o
     case 0xE: {     /* GOSUBL ±dddd : push pc+6, then jump */
         uint32_t d = fetch_k(pc + 2, 4);
         addr_t target = (pc + sext_nib(d, 4) + 6) & 0xFFFFFu;
-        /* Push pc+6 via jit_rstk_push(&saturn, pc+6) */
-        emit_mov_any(e, 0, 4);
         emit_mov_imm32(e, 1, (pc + 6) & 0xFFFFFu);
-        emit_bl_to(e, (const void *)jit_rstk_push);
+        emit_inline_rstk_push(e);
         *out_next = target;
         *consumed = 6;
         emit_ldr_imm(e, 0, 4, OFS(saturn_branches_taken));
@@ -1201,9 +1289,8 @@ static block_step_t translate_group_8_branch(emit_ctx_t *e, addr_t pc, addr_t *o
     }
     case 0xF: {     /* GOSBVL abs */
         addr_t a = fetch_k(pc + 2, 5);
-        emit_mov_any(e, 0, 4);
         emit_mov_imm32(e, 1, (pc + 7) & 0xFFFFFu);
-        emit_bl_to(e, (const void *)jit_rstk_push);
+        emit_inline_rstk_push(e);
         *out_next = a & 0xFFFFFu;
         *consumed = 7;
         emit_ldr_imm(e, 0, 4, OFS(saturn_branches_taken));
@@ -1286,8 +1373,7 @@ static void emit_compare_branch_tail(emit_ctx_t *e, const cb_targets_t *t) {
     emit_strb_imm(e, 0, 4, OFS(carry));
     emit_branch_counter(e, OFS(saturn_branches_taken));
     if (t->taken_kind == CB_TAKEN_RTN) {
-        emit_mov_any(e, 0, 4);
-        emit_bl_to(e, (const void *)jit_rstk_pop);
+        emit_inline_rstk_pop(e);
     } else {
         emit_set_r0_pc(e, t->taken_pc);
     }
@@ -1566,8 +1652,7 @@ static block_step_t translate_group_4_or_5(emit_ctx_t *e, addr_t pc, uint32_t *c
     /* taken */
     emit_branch_counter(e, OFS(saturn_branches_taken));
     if (t.taken_kind == CB_TAKEN_RTN) {
-        emit_mov_any(e, 0, 4);
-        emit_bl_to(e, (const void *)jit_rstk_pop);
+        emit_inline_rstk_pop(e);
     } else {
         emit_set_r0_pc(e, t.taken_pc);
     }
