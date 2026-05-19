@@ -293,6 +293,18 @@
 #define JIT_OPT_RTN_INLINE_CACHE 1
 #endif
 
+/* 2-way polymorphic IC. Adds a second (ic_ret_pc2, ic_ret_body2) slot
+ * per dyn-end cache entry; the dispatcher alternates between the two
+ * slots on each miss. Layered on top of JIT_OPT_RTN_INLINE_CACHE.
+ *
+ * Monomorphic call sites still hit slot 0 on the first check and pay
+ * no extra cost. Polymorphic 2-way alternation (e.g. nqueens calls Ptst
+ * from two sites that swap return-PCs every outer iter) was a near-100%
+ * miss rate with the 1-way IC and falls to a near-100% hit rate here. */
+#ifndef JIT_OPT_RTN_IC_2WAY
+#define JIT_OPT_RTN_IC_2WAY 1
+#endif
+
 /* Update saturn.saturn_ops in the C dispatcher (from the budget delta
  * between entry and return) rather than emitting an ldr/add/str triplet
  * in every block tail. The JIT only updates saturn.budget_remaining.

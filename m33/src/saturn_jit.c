@@ -2426,13 +2426,29 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
             /* ic_ret_pc (uint32) and ic_ret_body (uintptr_t) are adjacent
              * in cache_link_meta_t — load both with one LDRD. r2 =
              * ic_ret_pc (consumed by cmp), r3 = ic_ret_body (consumed by
-             * bx). */
+             * bx). With JIT_OPT_RTN_IC_2WAY we emit two checks (slot 0
+             * then slot 1, the latter loaded from [r1, #8]); both share
+             * a common hit path. */
             uint32_t ic_pc_addr = (uint32_t)(uintptr_t)link_target + 4;
             emit_mov_imm32(&e, 1, ic_pc_addr);
             /* LDRD r2, r3, [r1] : 0xE9D1 0x2300 (T1 imm offset=0) */
             emit_w32(&e, 0xE9D12300);
             emit_hw(&e, 0x4280 | (2 << 3) | 0);             /* cmp r0, r2 */
+#if JIT_OPT_RTN_IC_2WAY
+            /* On match → branch to the shared hit path; on miss → fall
+             * into the slot-1 check below. */
+            uint32_t br_hit_0 = emit_b_w_placeholder(&e, 0); /* BEQ → hit */
+            /* LDRD r2, r3, [r1, #8] : 0xE9D1 0x2302 (imm=2 → byte offset 8) */
+            emit_w32(&e, 0xE9D12302);
+            emit_hw(&e, 0x4280 | (2 << 3) | 0);             /* cmp r0, r2 */
             uint32_t br_miss = emit_b_w_placeholder(&e, 1); /* BNE → miss */
+            /* Slot-1 hit falls through to here. Patch slot-0's hit
+             * branch to land at the same point. */
+            uint32_t hit_pos = e.pos;
+            emit_patch_b_w(&e, br_hit_0, hit_pos);
+#else
+            uint32_t br_miss = emit_b_w_placeholder(&e, 1); /* BNE → miss */
+#endif
             if (ops != 0) {
 #if JIT_OPT_HOIST_BUDGET_OPS
                 /* HOIST: r5 = budget, r6 = saturn_ops live in registers

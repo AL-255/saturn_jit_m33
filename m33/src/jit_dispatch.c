@@ -70,6 +70,17 @@ typedef struct cache_link_meta_s {
                                  * compares the popped/dynamic PC against this
                                  * and chains directly to ic_ret_body on hit. */
     uintptr_t ic_ret_body;      /* cached body addr | thumb-bit, or stub */
+#if JIT_OPT_RTN_IC_2WAY
+    uint32_t  ic_ret_pc2;       /* 2nd IC slot — for polymorphic call sites
+                                 * (multiple GOSUB sites alternating into the
+                                 * same dyn_end block). JIT-emitted code does
+                                 * two compares with a common hit path. */
+    uintptr_t ic_ret_body2;
+    uint8_t   ic_next_fill;     /* 0 or 1 — which slot the dispatcher should
+                                 * fill on the next miss. Alternates each miss
+                                 * so an ABAB call pattern settles into both
+                                 * slots after warmup. */
+#endif
 } cache_link_meta_t;
 static cache_link_meta_t s_links[CACHE_SLOTS];
 #endif
@@ -164,6 +175,11 @@ static void reset_slots(void) {
         s_links[i].chain_insn_off = 0;
         s_links[i].ic_ret_pc = IC_RET_PC_COLD;
         s_links[i].ic_ret_body = stub_addr_thumb();
+#if JIT_OPT_RTN_IC_2WAY
+        s_links[i].ic_ret_pc2 = IC_RET_PC_COLD;
+        s_links[i].ic_ret_body2 = stub_addr_thumb();
+        s_links[i].ic_next_fill = 0;
+#endif
 #endif
     }
 }
@@ -216,6 +232,11 @@ static int cache_reserve(uint32_t pc) {
             s_links[idx].link_target = stub_addr_thumb();
             s_links[idx].ic_ret_pc = IC_RET_PC_COLD;
             s_links[idx].ic_ret_body = stub_addr_thumb();
+#if JIT_OPT_RTN_IC_2WAY
+            s_links[idx].ic_ret_pc2 = IC_RET_PC_COLD;
+            s_links[idx].ic_ret_body2 = stub_addr_thumb();
+            s_links[idx].ic_next_fill = 0;
+#endif
             return idx;
         }
     }
@@ -391,8 +412,25 @@ interp_status_t jit_run(uint64_t budget) {
             uintptr_t body = (uintptr_t)(s_code_buf
                                          + (uint32_t)s_links[found_slot].body_off * 2)
                              | 1u;
+#if JIT_OPT_RTN_IC_2WAY
+            /* Alternate IC slots so a 2-site polymorphic call pattern
+             * (e.g. nqueens calling Ptst from two GOSUB sites in turn)
+             * settles into both slots after warmup. ic_next_fill toggles
+             * each miss; the JIT-emitted block tries slot 0 first then
+             * slot 1, so both filled slots become hits. */
+            if (s_links[s_prev_dyn_slot].ic_next_fill == 0) {
+                s_links[s_prev_dyn_slot].ic_ret_pc   = pc;
+                s_links[s_prev_dyn_slot].ic_ret_body = body;
+                s_links[s_prev_dyn_slot].ic_next_fill = 1;
+            } else {
+                s_links[s_prev_dyn_slot].ic_ret_pc2   = pc;
+                s_links[s_prev_dyn_slot].ic_ret_body2 = body;
+                s_links[s_prev_dyn_slot].ic_next_fill = 0;
+            }
+#else
             s_links[s_prev_dyn_slot].ic_ret_pc   = pc;
             s_links[s_prev_dyn_slot].ic_ret_body = body;
+#endif
         }
         s_prev_dyn_slot = -1;
         s_prev_dyn_pc   = EMPTY_PC;
