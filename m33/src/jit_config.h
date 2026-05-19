@@ -51,4 +51,34 @@
 #define JIT_OPT_BLOCK_LINK 0
 #endif
 
+/* Use 4-byte LDR/STR for the first 4 nibbles of an A-field op (5
+ * nibbles total). Each Saturn reg is at a 4-aligned offset so the
+ * word access is safe. Saves ~50% of the load/store bytes in inline
+ * zero/copy/xchg ops. */
+#ifndef JIT_OPT_VECTOR_LDST
+#define JIT_OPT_VECTOR_LDST 1
+#endif
+
+/* Move the saturn_ops += block_ops counter bump from JIT-emitted code
+ * to the C dispatcher. Default OFF: measured neutral-to-slightly-
+ * negative under QEMU (the dispatcher's added += costs as much as the
+ * eliminated emit). Toggle to 1 to save ~24 bytes of code per block
+ * if code size matters. */
+#ifndef JIT_OPT_OPS_COUNTER_IN_C
+#define JIT_OPT_OPS_COUNTER_IN_C 0
+#endif
+
+/* Use 16-bit Thumb T1 forms of ldrb/strb when offset/regs fit (rt,rn ≤ 7
+ * and offset ≤ 31). Halves the size of inline-arith loads/stores when
+ * the target register is REG_A or REG_B (offsets 0..20).
+ *
+ * Default OFF: produces mixed results under QEMU's TCG — arith is 10%
+ * faster but calltree is 50% slower (consistent across 3+ runs). On
+ * real M33 hardware T1 and T2 ldrb/strb cost the same cycle, so this
+ * should be safe to enable on hardware; only QEMU benchmarks see the
+ * regression. Toggle to 1 for arith-heavy workloads. */
+#ifndef JIT_OPT_NARROW_LDST
+#define JIT_OPT_NARROW_LDST 0
+#endif
+
 #endif

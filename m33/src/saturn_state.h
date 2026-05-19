@@ -87,6 +87,12 @@ typedef struct saturn_state_s {
     uint64_t       saturn_ops;
     uint64_t       saturn_branches_taken;
     uint64_t       saturn_branches_skipped;
+
+    /* Remaining op budget for the current jit_run() invocation. When
+     * block linking is enabled, JIT-emitted blocks subtract their own
+     * block_ops from this field in their epilogue and exit to the C
+     * dispatcher when it goes non-positive. Initialised by jit_run. */
+    int32_t        budget_remaining;
 } saturn_t;
 
 extern saturn_t saturn;

@@ -129,27 +129,68 @@ static void emit_helper_call_2ptr_int(emit_ctx_t *e,
  * loop. Matters on workloads like `arith` where zero/copy/xchg fire
  * every iter. */
 
+/* Smart ldrb/strb: pick the 16-bit T1 encoding when rt,rn ≤ 7 and the
+ * byte offset fits in 5 bits, else fall back to the 32-bit T2 form.
+ * Halves code size for the typical inline-arith load/store of REG_A
+ * (offsets 0..4) or REG_B (16..20). */
+static void emit_ldrb_smart(emit_ctx_t *e, int rt, int rn, uint16_t imm) {
+#if JIT_OPT_NARROW_LDST
+    if (rt <= 7 && rn <= 7 && imm <= 31) { emit_ldrb_lo(e, rt, rn, (uint8_t)imm); return; }
+#endif
+    emit_ldrb_imm(e, rt, rn, imm);
+}
+static void emit_strb_smart(emit_ctx_t *e, int rt, int rn, uint16_t imm) {
+#if JIT_OPT_NARROW_LDST
+    if (rt <= 7 && rn <= 7 && imm <= 31) { emit_strb_lo(e, rt, rn, (uint8_t)imm); return; }
+#endif
+    emit_strb_imm(e, rt, rn, imm);
+}
+
 static void emit_inline_zero_field_a(emit_ctx_t *e, int reg_id) {
     uint16_t base = OFS_REG(reg_id);
-    /* movs r0, #0 (16-bit, low reg) */
     emit_mov_lo_imm8(e, 0, 0);
-    for (int i = 0; i < 5; i++) emit_strb_imm(e, 0, 4, base + i);
+#if JIT_OPT_VECTOR_LDST
+    /* Word store covers nibbles 0..3 (4 bytes), strb covers nibble 4.
+     * base is 4-aligned (regs at offsets 0/16/32/48). */
+    emit_str_imm(e, 0, 4, base);
+    emit_strb_smart(e, 0, 4, base + 4);
+#else
+    for (int i = 0; i < 5; i++) emit_strb_smart(e, 0, 4, base + i);
+#endif
 }
 static void emit_inline_copy_field_a(emit_ctx_t *e, int dst_id, int src_id) {
     uint16_t dst = OFS_REG(dst_id), src = OFS_REG(src_id);
+#if JIT_OPT_VECTOR_LDST
+    emit_ldr_imm(e, 0, 4, src);
+    emit_str_imm(e, 0, 4, dst);
+    emit_ldrb_smart(e, 0, 4, src + 4);
+    emit_strb_smart(e, 0, 4, dst + 4);
+#else
     for (int i = 0; i < 5; i++) {
-        emit_ldrb_imm(e, 0, 4, src + i);
-        emit_strb_imm(e, 0, 4, dst + i);
+        emit_ldrb_smart(e, 0, 4, src + i);
+        emit_strb_smart(e, 0, 4, dst + i);
     }
+#endif
 }
 static void emit_inline_xchg_field_a(emit_ctx_t *e, int a_id, int b_id) {
     uint16_t a = OFS_REG(a_id), b = OFS_REG(b_id);
+#if JIT_OPT_VECTOR_LDST
+    emit_ldr_imm(e, 0, 4, a);
+    emit_ldr_imm(e, 1, 4, b);
+    emit_str_imm(e, 1, 4, a);
+    emit_str_imm(e, 0, 4, b);
+    emit_ldrb_smart(e, 0, 4, a + 4);
+    emit_ldrb_smart(e, 1, 4, b + 4);
+    emit_strb_smart(e, 1, 4, a + 4);
+    emit_strb_smart(e, 0, 4, b + 4);
+#else
     for (int i = 0; i < 5; i++) {
-        emit_ldrb_imm(e, 0, 4, a + i);
-        emit_ldrb_imm(e, 1, 4, b + i);
-        emit_strb_imm(e, 1, 4, a + i);
-        emit_strb_imm(e, 0, 4, b + i);
+        emit_ldrb_smart(e, 0, 4, a + i);
+        emit_ldrb_smart(e, 1, 4, b + i);
+        emit_strb_smart(e, 1, 4, a + i);
+        emit_strb_smart(e, 0, 4, b + i);
     }
+#endif
 }
 
 /* Same primitives for the more general FS_W field (16 nibbles) ... only
@@ -218,18 +259,18 @@ static void emit_inline_inc_a(emit_ctx_t *e, int reg_id) {
     uint32_t cbzs[4];
     int cbz_count = 0;
     for (int i = 0; i < 5; i++) {
-        emit_ldrb_imm(e, 0, 4, base + i);
+        emit_ldrb_smart(e, 0, 4, base + i);
         emit_hw(e, 0x1800 | (2 << 6) | (0 << 3) | 0);    /* adds r0, r0, r2 */
         emit_cmp_imm_t2(e, 0, 16);
         EMIT_ITTE_HS(e);
         emit_subs_lo_imm8(e, 0, 16);
         emit_mov_lo_imm8(e, 2, 1);
         emit_mov_lo_imm8(e, 2, 0);
-        emit_strb_imm(e, 0, 4, base + i);
+        emit_strb_smart(e, 0, 4, base + i);
         if (i < 4) cbzs[cbz_count++] = emit_cbz_placeholder(e, 2);
     }
     uint32_t tail = e->pos;
-    emit_strb_imm(e, 2, 4, OFS(carry));
+    emit_strb_smart(e, 2, 4, OFS(carry));
     for (int k = 0; k < cbz_count; k++) emit_patch_cbz(e, cbzs[k], tail);
 }
 
@@ -278,8 +319,8 @@ static void emit_inline_add_a(emit_ctx_t *e, int dst_id, int src_id) {
      * we're only adding 1 at nibble 0). Stopping early would leave the
      * upper nibbles' src contributions unapplied. */
     for (int i = 0; i < 5; i++) {
-        emit_ldrb_imm(e, 0, 4, dst + i);
-        emit_ldrb_imm(e, 1, 4, src + i);
+        emit_ldrb_smart(e, 0, 4, dst + i);
+        emit_ldrb_smart(e, 1, 4, src + i);
         emit_hw(e, 0x1800 | (1 << 6) | (0 << 3) | 0);   /* adds r0, r0, r1 */
         emit_hw(e, 0x1800 | (2 << 6) | (0 << 3) | 0);   /* adds r0, r0, r2 */
         emit_cmp_imm_t2(e, 0, 16);
@@ -287,9 +328,9 @@ static void emit_inline_add_a(emit_ctx_t *e, int dst_id, int src_id) {
         emit_subs_lo_imm8(e, 0, 16);
         emit_mov_lo_imm8(e, 2, 1);
         emit_mov_lo_imm8(e, 2, 0);
-        emit_strb_imm(e, 0, 4, dst + i);
+        emit_strb_smart(e, 0, 4, dst + i);
     }
-    emit_strb_imm(e, 2, 4, OFS(carry));
+    emit_strb_smart(e, 2, 4, OFS(carry));
 }
 
 /* Inline field-sub A-field, hex mode. dst = dst - src in A-field.
@@ -319,17 +360,17 @@ static void emit_inline_sub_a(emit_ctx_t *e, int dst_id, int a_id, int b_id) {
     emit_mov_lo_imm8(e, 2, 0);
     /* Same reasoning as add: no early-exit valid. */
     for (int i = 0; i < 5; i++) {
-        emit_ldrb_imm(e, 0, 4, aof + i);
-        emit_ldrb_imm(e, 1, 4, bof + i);
+        emit_ldrb_smart(e, 0, 4, aof + i);
+        emit_ldrb_smart(e, 1, 4, bof + i);
         emit_hw(e, 0x1A00 | (1 << 6) | (0 << 3) | 0);   /* subs r0, r0, r1 */
         emit_hw(e, 0x1A00 | (2 << 6) | (0 << 3) | 0);   /* subs r0, r0, r2 */
         EMIT_ITTE_LO(e);
         emit_adds_lo_imm8(e, 0, 16);
         emit_mov_lo_imm8(e, 2, 1);
         emit_mov_lo_imm8(e, 2, 0);
-        emit_strb_imm(e, 0, 4, dst + i);
+        emit_strb_smart(e, 0, 4, dst + i);
     }
-    emit_strb_imm(e, 2, 4, OFS(carry));
+    emit_strb_smart(e, 2, 4, OFS(carry));
 }
 
 static void emit_inline_dec_a(emit_ctx_t *e, int reg_id) {
@@ -338,17 +379,17 @@ static void emit_inline_dec_a(emit_ctx_t *e, int reg_id) {
     uint32_t cbzs[4];
     int cbz_count = 0;
     for (int i = 0; i < 5; i++) {
-        emit_ldrb_imm(e, 0, 4, base + i);
+        emit_ldrb_smart(e, 0, 4, base + i);
         emit_hw(e, 0x1A00 | (2 << 6) | (0 << 3) | 0);   /* subs r0, r0, r2 */
         EMIT_ITTE_LO(e);
         emit_adds_lo_imm8(e, 0, 16);                     /* LO: r0 += 16 */
         emit_mov_lo_imm8(e, 2, 1);                       /* LO: borrow */
         emit_mov_lo_imm8(e, 2, 0);                       /* HS: no borrow */
-        emit_strb_imm(e, 0, 4, base + i);
+        emit_strb_smart(e, 0, 4, base + i);
         if (i < 4) cbzs[cbz_count++] = emit_cbz_placeholder(e, 2);
     }
     uint32_t tail = e->pos;
-    emit_strb_imm(e, 2, 4, OFS(carry));
+    emit_strb_smart(e, 2, 4, OFS(carry));
     for (int k = 0; k < cbz_count; k++) emit_patch_cbz(e, cbzs[k], tail);
 }
 
@@ -368,6 +409,12 @@ static void emit_inline_dec_a(emit_ctx_t *e, int reg_id) {
  * the only one that ever changes anyway. We'll widen to 64-bit later.
  */
 static void emit_ops_counter_bump(emit_ctx_t *e, uint32_t n) {
+#if JIT_OPT_OPS_COUNTER_IN_C
+    /* C dispatcher does saturn_ops += block_ops on return. Skip the
+     * emit entirely. */
+    (void)e; (void)n;
+    return;
+#endif
     if (n == 0) return;
     emit_ldr_imm(e, 0, 4, OFS(saturn_ops));
     /* addw r0, r0, #n  (handles n up to 4095). */
@@ -1325,12 +1372,25 @@ jit_block_fn_t saturn_jit_translate(addr_t start_pc,
                                     void *out_buf, uint32_t out_cap,
                                     uint32_t *out_used,
                                     jit_block_meta_t *meta) {
+    return saturn_jit_translate_linked(start_pc, out_buf, out_cap,
+                                       out_used, meta, NULL);
+}
+
+jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
+                                           void *out_buf, uint32_t out_cap,
+                                           uint32_t *out_used,
+                                           jit_block_meta_t *meta,
+                                           uintptr_t *link_target) {
     emit_ctx_t e;
     emit_init(&e, out_buf, out_cap);
 
     /* Prologue */
     emit_push(&e, (1 << 4) | (1 << 14));         /* push {r4, lr} */
     emit_mov_any(&e, 4, 0);                      /* mov r4, r0 (saturn*) */
+
+    /* body_off_hw = halfword index where body actually starts (after
+     * prologue). Chained-from-another-block entries skip prologue. */
+    uint16_t body_off_hw = (uint16_t)e.pos;
 
     addr_t pc = start_pc;
     uint32_t ops = 0;
@@ -1417,20 +1477,94 @@ jit_block_fn_t saturn_jit_translate(addr_t start_pc,
      *   pop  {r4, pc}     // r0 = the popped PC we set earlier
      */
     if (dyn_end) {
+#if !JIT_OPT_OPS_COUNTER_IN_C
         if (ops != 0) {
             emit_ldr_imm(&e, 1, 4, OFS(saturn_ops));
             if (ops <= 0xfff) emit_add_imm_t3_small(&e, 1, 1, (uint16_t)ops);
             else { emit_mov_imm32(&e, 2, ops);
-                   /* ADD.W r1, r1, r2 (T3 S=0). hi=0xEB00|Rn=1, lo=Rd=1, Rm=2. */
                    uint32_t hi = 0xEB00 | 1;
                    uint32_t lo = (0 << 12) | (1 << 8) | 2;
                    emit_w32(&e, (hi << 16) | lo); }
             emit_str_imm(&e, 1, 4, OFS(saturn_ops));
         }
+#endif
         emit_block_exit_pc_in_r0(&e);
     } else {
+#if JIT_OPT_BLOCK_LINK
+        if (link_target) {
+            /* Linked tail. Emits:
+             *   ; saturn_ops += ops
+             *   ldr r0, [r4, #ofs_ops]
+             *   add r0, r0, #ops
+             *   str r0, [r4, #ofs_ops]
+             *   ; r0 = next_pc (so dispatcher exit path has it)
+             *   movw r0, #lo_next_pc ; movt r0, #hi_next_pc (if needed)
+             *   ; budget -= ops
+             *   ldr r1, [r4, #ofs_budget]
+             *   sub r1, r1, #ops
+             *   str r1, [r4, #ofs_budget]
+             *   bmi local_exit
+             *   ; chain through link target word in cache slot
+             *   movw r2, #lo(link_target_addr)
+             *   movt r2, #hi(link_target_addr)
+             *   ldr  r2, [r2]
+             *   bx   r2
+             *   local_exit: pop {r4, pc} */
+            if (ops != 0) {
+                emit_ldr_imm(&e, 0, 4, OFS(saturn_ops));
+                if (ops <= 0xfff) emit_add_imm_t3_small(&e, 0, 0, (uint16_t)ops);
+                else { emit_mov_imm32(&e, 1, ops);
+                       uint32_t hi = 0xEB00 | 0;
+                       uint32_t lo = (0 << 12) | (0 << 8) | 1;
+                       emit_w32(&e, (hi << 16) | lo); }
+                emit_str_imm(&e, 0, 4, OFS(saturn_ops));
+            }
+            emit_mov_imm32(&e, 0, next_pc & 0xFFFFFu);
+            if (ops != 0) {
+                emit_ldr_imm(&e, 1, 4, OFS(budget_remaining));
+                if (ops <= 0xfff) emit_sub_imm_t3_small(&e, 1, 1, (uint16_t)ops);
+                else { emit_mov_imm32(&e, 2, ops);
+                       /* sub.w r1, r1, r2 (T3 S=0). hi=0xEBA0|Rn=1, lo=Rd=1, Rm=2 */
+                       uint32_t hi = 0xEBA0 | 1;
+                       uint32_t lo = (0 << 12) | (1 << 8) | 2;
+                       emit_w32(&e, (hi << 16) | lo); }
+                emit_str_imm(&e, 1, 4, OFS(budget_remaining));
+            }
+            /* If ops == 0 we skip budget check entirely (block is a no-op).
+             * The bmi will use the flags from the last operation, which is
+             * the str above. STR doesn't set flags. We need a separate
+             * test. */
+            if (ops != 0) {
+                /* We want to test if r1 < 0 (i.e., we already underflowed).
+                 * The subs set flags, but emit_sub_imm_t3_small uses SUBW
+                 * which doesn't set flags. Need an explicit test. Use
+                 * CMP r1, #0 then BLT, or test the sign bit. Simplest:
+                 * after the str, do "cmp r1, #0" then "bmi local_exit". */
+                emit_cmp_imm_t2(&e, 1, 0);
+                uint32_t br = emit_b_w_placeholder(&e, 0xB);   /* LT (signed) = 0xB? actually
+                                                                cond LT = 1011 = 0xB? wait
+                                                                cond MI = 0100 = 4, LT = 0xB */
+                /* chain */
+                emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
+                emit_ldr_imm(&e, 2, 2, 0);
+                emit_bx(&e, 2);
+                uint32_t local_exit_pos = e.pos;
+                emit_patch_b_w(&e, br, local_exit_pos);
+            } else {
+                /* No ops, always chain. */
+                emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
+                emit_ldr_imm(&e, 2, 2, 0);
+                emit_bx(&e, 2);
+            }
+            emit_hw(&e, 0xBD10);     /* pop {r4, pc} : local_exit */
+        } else {
+            emit_ops_counter_bump(&e, ops);
+            emit_block_exit_with_pc(&e, next_pc);
+        }
+#else
         emit_ops_counter_bump(&e, ops);
         emit_block_exit_with_pc(&e, next_pc);
+#endif
     }
     emit_finalize(&e);
 
@@ -1444,6 +1578,8 @@ jit_block_fn_t saturn_jit_translate(addr_t start_pc,
         meta->saturn_nibs = (next_pc >= start_pc) ? (next_pc - start_pc) : 0;
         meta->code_bytes = emit_bytes_used(&e);
         meta->saturn_ops = ops;
+        meta->body_off_hw = body_off_hw;
+        meta->static_next_pc = dyn_end ? JIT_DYN_NEXT_PC : next_pc;
     }
     if (out_used) *out_used = emit_bytes_used(&e);
 

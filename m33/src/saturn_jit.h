@@ -27,11 +27,24 @@ typedef struct jit_block_meta_s {
     uint32_t saturn_nibs;     /* Saturn nibbles consumed */
     uint32_t code_bytes;      /* Thumb-2 bytes emitted */
     uint32_t saturn_ops;      /* Saturn ops translated */
+    uint16_t body_off_hw;     /* halfword index where body starts (after prologue) */
+    uint32_t static_next_pc;  /* statically-known next PC, or 0xFFFFFFFE for dynamic */
 } jit_block_meta_t;
 
 jit_block_fn_t saturn_jit_translate(addr_t start_pc,
                                     void *out_buf, uint32_t out_cap,
                                     uint32_t *out_used,
                                     jit_block_meta_t *meta);
+
+/* Linked variant: link_target points at the slot's link_target word
+ * in cache RAM; the emitter bakes its address in via movw/movt. Pass
+ * NULL to disable linking for this block (e.g. cache-off mode). */
+jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
+                                           void *out_buf, uint32_t out_cap,
+                                           uint32_t *out_used,
+                                           jit_block_meta_t *meta,
+                                           uintptr_t *link_target);
+
+#define JIT_DYN_NEXT_PC 0xFFFFFFFEu
 
 #endif
