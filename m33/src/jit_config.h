@@ -80,6 +80,23 @@
 #define JIT_OPT_INLINE_ZEROTEST 1
 #endif
 
+/* Inline 5-nibble DAT load/store (group 14x W-field). Skips the
+ * jit_dat_load_w / jit_dat_store_w helper call by computing
+ * &ram[d - ram_base] inline and transferring 4 + 1 nibbles.
+ *
+ * **DEFAULT OFF** — the current implementation has NO bounds check
+ * and silently corrupts memory when d goes outside [ram_base,
+ * ram_base+ram_size). Cross-check at budget=200 doesn't catch it
+ * because that's only ~30 iters; the full 200k-op bench corrupts
+ * the JIT cache (memmix's d grows past ram_size after ~13K iters)
+ * and the workload silently runs the wrong code path forever.
+ *
+ * To re-enable safely, add a `cmp r2, ram_size; bhs fallback` guard
+ * after computing the offset, with the fallback calling the helper. */
+#ifndef JIT_OPT_INLINE_DAT
+#define JIT_OPT_INLINE_DAT 0
+#endif
+
 /* Move the saturn_ops += block_ops counter bump from JIT-emitted code
  * to the C dispatcher. Default OFF: measured neutral-to-slightly-
  * negative under QEMU (the dispatcher's added += costs as much as the

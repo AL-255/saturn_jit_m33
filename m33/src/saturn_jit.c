@@ -866,6 +866,49 @@ static block_step_t translate_group_1(emit_ctx_t *e, addr_t pc, uint32_t *consum
         int reg_idx = (op & 4) ? REG_C : REG_A;
         int d_idx   = (op & 1) ? 1 : 0;
         bool is_store = (op < 2) || (op >= 4 && op < 6);
+
+#if JIT_OPT_INLINE_DAT
+        if (is_W) {
+            /* Inline 5-nibble DAT W. Assumes d is in [ram_base, ram_base+ram_size).
+             *   ldr  r0, [r4, #ofs_d_idx]    ; r0 = d
+             *   ldr  r1, [r4, #ofs_ram]      ; r1 = saturn.ram
+             *   ldr  r2, [r4, #ofs_ram_base] ; r2 = ram_base
+             *   sub.w r2, r0, r2             ; r2 = d - ram_base (offset)
+             *   add.w r2, r2, r1             ; r2 = &ram[offset]
+             * load:  ldr r0, [r2]; str r0, [r4, #dst]; ldrb r0, [r2,#4]; strb r0, [r4, #dst+4]
+             * store: ldr r0, [r4, #src]; str r0, [r2]; ldrb r0, [r4, #src+4]; strb r0, [r2,#4]
+             */
+            emit_load_d(e, 0, d_idx);
+            emit_ldr_imm(e, 1, 4, OFS(ram));
+            emit_ldr_imm(e, 2, 4, OFS(ram_base));
+            /* sub.w r2, r0, r2 — T3 reg-reg, S=0. hi=0xEBA0|Rn=0, lo=Rd=2,Rm=2 */
+            {
+                uint32_t hi = 0xEBA0 | 0;
+                uint32_t lo = (0 << 12) | (2 << 8) | (0 << 6) | (0 << 4) | 2;
+                emit_w32(e, (hi << 16) | lo);
+            }
+            /* add.w r2, r2, r1 — hi=0xEB00|Rn=2, lo=Rd=2,Rm=1 */
+            {
+                uint32_t hi = 0xEB00 | 2;
+                uint32_t lo = (0 << 12) | (2 << 8) | (0 << 6) | (0 << 4) | 1;
+                emit_w32(e, (hi << 16) | lo);
+            }
+            uint16_t reg_off = OFS_REG(reg_idx);
+            if (is_store) {
+                emit_ldr_imm(e, 0, 4, reg_off);
+                emit_str_imm(e, 0, 2, 0);
+                emit_ldrb_imm(e, 0, 4, reg_off + 4);
+                emit_strb_imm(e, 0, 2, 4);
+            } else {
+                emit_ldr_imm(e, 0, 2, 0);
+                emit_str_imm(e, 0, 4, reg_off);
+                emit_ldrb_imm(e, 0, 2, 4);
+                emit_strb_imm(e, 0, 4, reg_off + 4);
+            }
+            *consumed = 3;
+            return BLK_CONTINUE;
+        }
+#endif
         /* setup: r0 (or r1) = d, r0/r1 = reg ptr, r2 = saturn */
         if (is_store) {
             /* args: (addr_t d, reg*, st*) */
