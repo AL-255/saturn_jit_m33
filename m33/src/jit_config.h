@@ -212,6 +212,20 @@
 #define JIT_OPT_SELF_LOOP_DIRECT_BRANCH 1
 #endif
 
+/* Update saturn.saturn_ops in the C dispatcher (from the budget delta
+ * between entry and return) rather than emitting an ldr/add/str triplet
+ * in every block tail. The JIT only updates saturn.budget_remaining.
+ *
+ * Default OFF: shrank the linked tail by 3 instructions per chained
+ * iter as expected, and helped arith/countloop ~2-3% each, but memmix
+ * regressed +40% under QEMU TCG (consistent across re-runs). The other
+ * three workloads' chained inner loop tightened cleanly; memmix's
+ * INLINE_DAT path apparently changes branch / TCG behavior when the
+ * surrounding chain shrinks. Re-evaluate on real hardware. */
+#ifndef JIT_OPT_BUDGET_DRIVEN_OPS
+#define JIT_OPT_BUDGET_DRIVEN_OPS 0
+#endif
+
 /* Hoist saturn.budget_remaining and saturn.saturn_ops into callee-saved
  * registers (r5/r6) for the lifetime of a JIT block. Without this, the
  * linked-tail loop loads/stores both fields on every chained iteration.

@@ -295,12 +295,36 @@ interp_status_t jit_run(uint64_t budget) {
 #if JIT_OPT_BLOCK_LINK
         /* In linked mode the block may chain across many compiled
          * blocks before returning. Reset budget tracker each call. */
-        saturn.budget_remaining = (int32_t)(budget > 0x7fffffff ? 0x7fffffff : budget);
+        int32_t initial_budget = (int32_t)(budget > 0x7fffffff ? 0x7fffffff : budget);
+        saturn.budget_remaining = initial_budget;
+#if JIT_OPT_BUDGET_DRIVEN_OPS
+        saturn.pc = fn(&saturn);
+        uint32_t executed = (uint32_t)(initial_budget - saturn.budget_remaining);
+        saturn.saturn_ops += executed;
+#else
         addr_t before_ops_lo = (addr_t)saturn.saturn_ops;
         saturn.pc = fn(&saturn);
         uint32_t executed = (uint32_t)((uint32_t)saturn.saturn_ops - (uint32_t)before_ops_lo);
         if (executed == 0) executed = block_ops;
+#endif
         if (budget >= executed) budget -= executed; else budget = 0;
+#else
+#if JIT_OPT_BUDGET_DRIVEN_OPS
+        /* Track budget delta for saturn_ops attribution. */
+        int32_t initial_budget = (int32_t)(budget > 0x7fffffff ? 0x7fffffff : budget);
+        saturn.budget_remaining = initial_budget;
+        saturn.pc = fn(&saturn);
+        uint32_t executed = (uint32_t)(initial_budget - saturn.budget_remaining);
+        if (executed == 0 && block_ops != 0) executed = block_ops;
+        saturn.saturn_ops += executed;
+        if (block_ops == 0 && executed == 0) {
+            interp_status_t one = saturn_run_interp(1);
+            if (one != INTERP_OK_BUDGET) return one;
+            s_stats.interp_fallback_ops++;
+            if (budget > 0) budget--;
+        } else {
+            if (budget >= executed) budget -= executed; else budget = 0;
+        }
 #else
         saturn.pc = fn(&saturn);
         if (block_ops == 0) {
@@ -311,6 +335,7 @@ interp_status_t jit_run(uint64_t budget) {
         } else {
             if (budget >= block_ops) budget -= block_ops; else budget = 0;
         }
+#endif
 #endif
     }
     return status;

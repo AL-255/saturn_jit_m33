@@ -638,6 +638,23 @@ static void emit_inline_dec_a(emit_ctx_t *e, int reg_id) {
  * the only one that ever changes anyway. We'll widen to 64-bit later.
  */
 static void emit_ops_counter_bump(emit_ctx_t *e, uint32_t n) {
+#if JIT_OPT_BUDGET_DRIVEN_OPS
+    /* Dispatcher derives saturn_ops from the budget delta. Just shave
+     * the budget so the dispatcher sees the right executed count. */
+    if (n == 0) return;
+    emit_ldr_imm(e, 0, 4, OFS(budget_remaining));
+    if (n <= 0xff)        emit_subs_lo_imm8(e, 0, (uint8_t)n);
+    else if (n <= 0xfff)  emit_sub_imm_t3_small(e, 0, 0, (uint16_t)n);
+    else {
+        emit_mov_imm32(e, 1, n);
+        /* sub.w r0, r0, r1 (T3 S=0) */
+        uint32_t hi = 0xEBA0 | 0;
+        uint32_t lo = (0 << 12) | (0 << 8) | 1;
+        emit_w32(e, (hi << 16) | lo);
+    }
+    emit_str_imm(e, 0, 4, OFS(budget_remaining));
+    return;
+#endif
 #if JIT_OPT_OPS_COUNTER_IN_C
     /* C dispatcher does saturn_ops += block_ops on return. Skip the
      * emit entirely. */
@@ -1848,11 +1865,23 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
     /* Flush any pending carry held in r2 from inline arith. */
     emit_flush_carry(&e);
     if (dyn_end) {
-#if !JIT_OPT_OPS_COUNTER_IN_C
+#if JIT_OPT_BUDGET_DRIVEN_OPS
+        /* Dispatcher derives saturn_ops += executed from the budget
+         * delta, so the JIT just needs to subtract ops from budget. r0
+         * holds the dynamic next-PC and must survive — use r1/r2. */
+        if (ops != 0) {
+            emit_ldr_imm(&e, 1, 4, OFS(budget_remaining));
+            if (ops <= 0xff)      emit_subs_lo_imm8(&e, 1, (uint8_t)ops);
+            else if (ops <= 0xfff) emit_sub_imm_t3_small(&e, 1, 1, (uint16_t)ops);
+            else { emit_mov_imm32(&e, 2, ops);
+                   uint32_t hi = 0xEBA0 | 1;
+                   uint32_t lo = (0 << 12) | (1 << 8) | 2;
+                   emit_w32(&e, (hi << 16) | lo); }
+            emit_str_imm(&e, 1, 4, OFS(budget_remaining));
+        }
+#elif !JIT_OPT_OPS_COUNTER_IN_C
         if (ops != 0) {
 #if JIT_OPT_HOIST_BUDGET_OPS
-            /* r6 = saturn_ops. r0 holds the dynamic next-PC and must
-             * survive — only touch r6. */
             if (ops <= 0xff)      emit_adds_lo_imm8(&e, 6, (uint8_t)ops);
             else if (ops <= 0xfff) emit_add_imm_t3_small(&e, 6, 6, (uint16_t)ops);
             else { emit_mov_imm32(&e, 1, ops);
@@ -1943,6 +1972,7 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
             emit_str_imm(&e, 6, 4, OFS(saturn_ops));
             emit_hw(&e, EPILOGUE_POP_OP);
 #else
+#if !JIT_OPT_BUDGET_DRIVEN_OPS
             if (ops != 0) {
                 emit_ldr_imm(&e, 0, 4, OFS(saturn_ops));
                 if (ops <= 0xff)      emit_adds_lo_imm8(&e, 0, (uint8_t)ops);
@@ -1953,6 +1983,7 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                        emit_w32(&e, (hi << 16) | lo); }
                 emit_str_imm(&e, 0, 4, OFS(saturn_ops));
             }
+#endif
             emit_mov_imm32(&e, 0, next_pc & 0xFFFFFu);
             if (ops != 0) {
                 emit_ldr_imm(&e, 1, 4, OFS(budget_remaining));
