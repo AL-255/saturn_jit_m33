@@ -771,6 +771,23 @@ static const field_arith_entry_t b_arith[16] = {
 /* For A,fs≥8 (move/zero/exchange). reg_copy, reg_zero, reg_xchg signatures
  * differ enough that we'll just emit case-by-case. */
 
+/* P-tracking (JIT_OPT_TRACK_P_CONST, default on): the translator
+ * remembers when P was just set by a `P=imm` (group 2). Subsequent
+ * P-field ops then bake P into a constant LDR/STR offset instead of
+ * loading saturn.p at runtime — saves the ldrb + add pair. The state
+ * is reset on any op that may change P (P=C n, CPEX n, P=P+1, P=P-1,
+ * and at any block boundary). Declared at file scope (not gated by
+ * INLINE_P_FIELD) so callers without that optimization still link. */
+#if JIT_OPT_TRACK_P_CONST
+static int s_p_known;
+static inline void p_const_clear(void) { s_p_known = -1; }
+static inline void p_const_set(int v) { s_p_known = v & 0xf; }
+#else
+#define s_p_known (-1)
+#define p_const_clear() ((void)0)
+#define p_const_set(v) ((void)(v))
+#endif
+
 #if JIT_OPT_INLINE_P_FIELD
 /* P-field arith is a 1-nibble op — emit it inline rather than calling
  * the generic field helper, which loops + checks field length on every
@@ -794,17 +811,28 @@ static void emit_strb_reg_t1(emit_ctx_t *e, int rt, int rn, int rm) {
 static void emit_inline_p_arith(emit_ctx_t *e,
                                  const field_arith_entry_t *t,
                                  bool is_sub_family) {
-    /* r0 = P (loaded once). r1 is scratch base. r2 = working nibble.
-     * r3 = carry-out. Final stores: r2 → dst[P], r3 → saturn.carry. */
-    emit_ldrb_imm(e, 0, 4, OFS(p));
+    /* r2 = working nibble, r3 = carry-out.
+     * If s_p_known >= 0 we know P statically and bake it into LDR/STR
+     * offsets; otherwise we load P at runtime into r0 and index via
+     * `[r1, r0]` register-form.                                       */
+    int pk = s_p_known;
+    if (pk < 0) {
+        emit_ldrb_imm(e, 0, 4, OFS(p));
+    }
 
     if (t->helper3) {
         /* Binary op: r2 = reg[a][P]. */
-        emit_add_imm_t3_small(e, 1, 4, OFS_REG(t->a));
-        emit_ldrb_reg_t1(e, 2, 1, 0);
+        if (pk >= 0) {
+            emit_ldrb_imm(e, 2, 4, OFS_REG(t->a) + pk);
+        } else {
+            emit_add_imm_t3_small(e, 1, 4, OFS_REG(t->a));
+            emit_ldrb_reg_t1(e, 2, 1, 0);
+        }
         if (t->a == t->b) {
             /* a == b (e.g. A=A+A): r3 = r2 via T1 mov. */
             emit_hw(e, 0x4600 | ((3 & 0x8) << 4) | ((2 & 0xf) << 3) | (3 & 0x7));
+        } else if (pk >= 0) {
+            emit_ldrb_imm(e, 3, 4, OFS_REG(t->b) + pk);
         } else {
             emit_add_imm_t3_small(e, 1, 4, OFS_REG(t->b));
             emit_ldrb_reg_t1(e, 3, 1, 0);
@@ -818,26 +846,30 @@ static void emit_inline_p_arith(emit_ctx_t *e,
         }
     } else {
         /* Unary: r2 = reg[res][P], then ±1. */
-        emit_add_imm_t3_small(e, 1, 4, OFS_REG(t->res));
-        emit_ldrb_reg_t1(e, 2, 1, 0);
-        if (is_sub_family) {
-            /* INC family in group B (op 4..7): adds r2, #1 */
-            emit_adds_lo_imm8(e, 2, 1);
+        if (pk >= 0) {
+            emit_ldrb_imm(e, 2, 4, OFS_REG(t->res) + pk);
         } else {
+            emit_add_imm_t3_small(e, 1, 4, OFS_REG(t->res));
+            emit_ldrb_reg_t1(e, 2, 1, 0);
+        }
+        if (is_sub_family) {
             /* DEC family in group A (op C..F): subs r2, #1 */
             emit_subs_lo_imm8(e, 2, 1);
+        } else {
+            /* INC family in group B (op 4..7): adds r2, #1 */
+            emit_adds_lo_imm8(e, 2, 1);
         }
     }
 
-    /* Extract carry. ADD-family sums to 0..30 (bit 4 is carry-out);
-     * SUB-family computes a-b in 32-bit signed (bit 31 is borrow). */
-    bool carry_is_borrow = is_sub_family
-        ? (t->helper3 != NULL)  /* binary sub → borrow */
-        : (t->helper3 == NULL); /* unary DEC → borrow */
-    /* Unary INC (helper3==NULL, is_sub_family==true) uses ADD-style carry. */
-    if (!t->helper3 && is_sub_family) {
-        carry_is_borrow = false; /* INC: carry from bit 4 like ADD */
-    }
+    /* Extract carry. ADD/INC sums fit in 0..30 with bit 4 being the
+     * carry-out; SUB/DEC computes a-b in 32-bit signed where bit 31
+     * is set on borrow. is_sub_family maps cleanly:
+     *   - Group A op<C : ADD (is_sub_family=false) → bit 4
+     *   - Group A op≥C : DEC (is_sub_family=true)  → bit 31
+     *   - Group B op 4..7 : INC (is_sub_family=false) → bit 4
+     *   - Group B other  : SUB (is_sub_family=true)  → bit 31
+     * so the carry-source flag is just is_sub_family in every case. */
+    bool carry_is_borrow = is_sub_family;
     if (carry_is_borrow) {
         /* lsrs r3, r2, #31 (T1 LSR imm: imm=31 fits) */
         emit_lsrs_lo_imm(e, 3, 2, 31);
@@ -850,10 +882,14 @@ static void emit_inline_p_arith(emit_ctx_t *e,
 
     /* Store result and carry. For unary the dst reg was already loaded
      * into r1 above; skip the redundant ADD. */
-    if (t->helper3) {
-        emit_add_imm_t3_small(e, 1, 4, OFS_REG(t->res));
+    if (pk >= 0) {
+        emit_strb_imm(e, 2, 4, OFS_REG(t->res) + pk);
+    } else {
+        if (t->helper3) {
+            emit_add_imm_t3_small(e, 1, 4, OFS_REG(t->res));
+        }
+        emit_strb_reg_t1(e, 2, 1, 0);
     }
-    emit_strb_reg_t1(e, 2, 1, 0);
     emit_strb_imm(e, 3, 4, OFS(carry));
 }
 
@@ -865,6 +901,24 @@ static void emit_inline_p_arith(emit_ctx_t *e,
  */
 static void emit_inline_p_copy(emit_ctx_t *e, int dst_reg, int src_reg,
                                 bool is_xchg, bool is_zero) {
+    int pk = s_p_known;
+    if (pk >= 0) {
+        if (is_zero) {
+            emit_mov_lo_imm8(e, 2, 0);
+            emit_strb_imm(e, 2, 4, OFS_REG(dst_reg) + pk);
+            return;
+        }
+        if (is_xchg) {
+            emit_ldrb_imm(e, 2, 4, OFS_REG(dst_reg) + pk);
+            emit_ldrb_imm(e, 3, 4, OFS_REG(src_reg) + pk);
+            emit_strb_imm(e, 2, 4, OFS_REG(src_reg) + pk);
+            emit_strb_imm(e, 3, 4, OFS_REG(dst_reg) + pk);
+            return;
+        }
+        emit_ldrb_imm(e, 2, 4, OFS_REG(src_reg) + pk);
+        emit_strb_imm(e, 2, 4, OFS_REG(dst_reg) + pk);
+        return;
+    }
     emit_ldrb_imm(e, 0, 4, OFS(p));               /* r0 = P */
     if (is_zero) {
         emit_add_imm_t3_small(e, 1, 4, OFS_REG(dst_reg));
@@ -905,7 +959,7 @@ static block_step_t translate_group_a(emit_ctx_t *e, addr_t pc) {
     int op = fetch_nib(pc + 2);
     int field = fs & 7;
     if (fs < 8) {
-#if JIT_OPT_INLINE_P_FIELD
+#if JIT_OPT_INLINE_P_FIELD && JIT_OPT_INLINE_P_FIELD_ARITH
         if (field == 0) {
             /* Group A fs=0: ADD-family (op<C) or DEC-family (op≥C). */
             emit_inline_p_arith(e, &a_arith[op], /*is_sub_family*/ op >= 0xC);
@@ -916,7 +970,7 @@ static block_step_t translate_group_a(emit_ctx_t *e, addr_t pc) {
         return BLK_CONTINUE;
     }
     /* fs ≥ 8: zero / copy / exchange */
-#if JIT_OPT_INLINE_P_FIELD
+#if JIT_OPT_INLINE_P_FIELD && JIT_OPT_INLINE_P_FIELD_COPY
     if (field == 0) {
         static const uint8_t dst_tab[16] = {
             REG_A, REG_B, REG_C, REG_D,     /* 0..3 zero */
@@ -962,7 +1016,7 @@ static block_step_t translate_group_b(emit_ctx_t *e, addr_t pc) {
     int op = fetch_nib(pc + 2);
     int field = fs & 7;
     if (fs < 8) {
-#if JIT_OPT_INLINE_P_FIELD
+#if JIT_OPT_INLINE_P_FIELD && JIT_OPT_INLINE_P_FIELD_ARITH
         if (field == 0) {
             /* Group B fs=0: SUB-family (op<4 or 8..F) or INC-family (op 4..7). */
             bool is_sub_family = !(op >= 0x4 && op <= 0x7);
@@ -1102,6 +1156,7 @@ static block_step_t translate_group_2(emit_ctx_t *e, addr_t pc) {
     int n = fetch_nib(pc + 1);
     emit_mov_imm32(e, 0, n);
     emit_strb_imm(e, 0, 4, OFS(p));
+    p_const_set(n);
     return BLK_CONTINUE;
 }
 
@@ -1171,6 +1226,7 @@ static block_step_t translate_group_0(emit_ctx_t *e, addr_t pc, addr_t *out_next
         emit_mov_lo_imm8(e, 1, 0);
         emit_strb_imm(e, 1, 4, OFS(carry));
         discard_pending_carry();
+        if (s_p_known >= 0) p_const_set(s_p_known + 1);
         return BLK_CONTINUE;
     case 0xD: /* P=P-1; carry if was 0 before */
         emit_ldrb_imm(e, 0, 4, OFS(p));
@@ -1187,6 +1243,7 @@ static block_step_t translate_group_0(emit_ctx_t *e, addr_t pc, addr_t *out_next
             emit_w32(e, (hi << 16) | lo);
         }
         emit_strb_imm(e, 0, 4, OFS(p));
+        if (s_p_known >= 0) p_const_set(s_p_known - 1);
         return BLK_CONTINUE;
     case 0xF: /* RTI : pop and resume */
         emit_flush_carry(e);
@@ -1553,6 +1610,7 @@ static block_step_t translate_group_8_zero(emit_ctx_t *e, addr_t pc, uint32_t *c
             emit_ldrb_imm(e, 0, 4, c_nib);
             emit_and_imm_small(e, 0, 0, 0xf);
             emit_strb_imm(e, 0, 4, OFS(p));
+            p_const_clear();
             break;
         }
         case 0xF: { /* CPEX n : swap C[n] ↔ P */
@@ -1561,6 +1619,7 @@ static block_step_t translate_group_8_zero(emit_ctx_t *e, addr_t pc, uint32_t *c
             emit_strb_imm(e, 1, 4, OFS(p));
             emit_and_imm_small(e, 0, 0, 0xf);
             emit_strb_imm(e, 0, 4, c_nib);
+            p_const_clear();
             break;
         }
         }
@@ -1841,40 +1900,45 @@ static void emit_pair_compare(emit_ctx_t *e, int a_reg, int b_reg, int field, co
      * 3-instruction equality test (subs + clz + lsr) into r0. The C
      * helper would do the same work behind a function call. */
     if (field == 0 && helper == (const void *)reg_eq) {
-        emit_ldrb_imm(e, 0, 4, OFS(p));
-        emit_add_imm_t3_small(e, 1, 4, OFS_REG(a_reg));
-        emit_ldrb_reg_t1(e, 2, 1, 0);
-        emit_add_imm_t3_small(e, 1, 4, OFS_REG(b_reg));
-        emit_ldrb_reg_t1(e, 3, 1, 0);
+        int pk = s_p_known;
+        if (pk >= 0) {
+            emit_ldrb_imm(e, 2, 4, OFS_REG(a_reg) + pk);
+            emit_ldrb_imm(e, 3, 4, OFS_REG(b_reg) + pk);
+        } else {
+            emit_ldrb_imm(e, 0, 4, OFS(p));
+            emit_add_imm_t3_small(e, 1, 4, OFS_REG(a_reg));
+            emit_ldrb_reg_t1(e, 2, 1, 0);
+            emit_add_imm_t3_small(e, 1, 4, OFS_REG(b_reg));
+            emit_ldrb_reg_t1(e, 3, 1, 0);
+        }
         /* r0 = (r2 == r3) ? 1 : 0  via subs/clz/lsr. */
-        /* subs r0, r2, r3 (T1) */
-        emit_hw(e, 0x1A00 | (3 << 6) | (2 << 3) | 0);
+        emit_hw(e, 0x1A00 | (3 << 6) | (2 << 3) | 0); /* subs r0, r2, r3 */
         emit_clz(e, 0, 0);
         emit_lsrs_lo_imm(e, 0, 0, 5);
         return;
     }
     if (field == 0 && (helper == (const void *)reg_gt ||
                        helper == (const void *)reg_lt)) {
-        emit_ldrb_imm(e, 0, 4, OFS(p));
-        emit_add_imm_t3_small(e, 1, 4, OFS_REG(a_reg));
-        emit_ldrb_reg_t1(e, 2, 1, 0);
-        emit_add_imm_t3_small(e, 1, 4, OFS_REG(b_reg));
-        emit_ldrb_reg_t1(e, 3, 1, 0);
-        /* For GT: r0 = (a > b) ? 1 : 0. Use subs r0, r2, r3 then check
-         * sign / zero. (a>b) ⇔ (a-b > 0) ⇔ (sign==0 && a!=b). */
-        /* subs r0, r2, r3 sets flags. */
+        int pk = s_p_known;
+        if (pk >= 0) {
+            emit_ldrb_imm(e, 2, 4, OFS_REG(a_reg) + pk);
+            emit_ldrb_imm(e, 3, 4, OFS_REG(b_reg) + pk);
+        } else {
+            emit_ldrb_imm(e, 0, 4, OFS(p));
+            emit_add_imm_t3_small(e, 1, 4, OFS_REG(a_reg));
+            emit_ldrb_reg_t1(e, 2, 1, 0);
+            emit_add_imm_t3_small(e, 1, 4, OFS_REG(b_reg));
+            emit_ldrb_reg_t1(e, 3, 1, 0);
+        }
+        /* subs r0, r2, r3 sets flags; ite gt/lt selects 1/0. */
         emit_hw(e, 0x1A00 | (3 << 6) | (2 << 3) | 0);
         if (helper == (const void *)reg_gt) {
-            /* ite gt; mov r0,#1; mov r0,#0 */
             emit_hw(e, 0xBFCC);                 /* ITE GT */
-            emit_mov_lo_imm8(e, 0, 1);
-            emit_mov_lo_imm8(e, 0, 0);
         } else {
-            /* ite lt; mov r0,#1; mov r0,#0 */
             emit_hw(e, 0xBFBC);                 /* ITE LT */
-            emit_mov_lo_imm8(e, 0, 1);
-            emit_mov_lo_imm8(e, 0, 0);
         }
+        emit_mov_lo_imm8(e, 0, 1);
+        emit_mov_lo_imm8(e, 0, 0);
         return;
     }
 #endif
@@ -1900,9 +1964,14 @@ static void emit_zero_test(emit_ctx_t *e, int reg, int field, const void *helper
 #if JIT_OPT_INLINE_P_FIELD
     /* P-field zero-test: 1 nibble at [reg + P]. */
     if (field == 0) {
-        emit_ldrb_imm(e, 0, 4, OFS(p));
-        emit_add_imm_t3_small(e, 1, 4, OFS_REG(reg));
-        emit_ldrb_reg_t1(e, 0, 1, 0);
+        int pk = s_p_known;
+        if (pk >= 0) {
+            emit_ldrb_imm(e, 0, 4, OFS_REG(reg) + pk);
+        } else {
+            emit_ldrb_imm(e, 0, 4, OFS(p));
+            emit_add_imm_t3_small(e, 1, 4, OFS_REG(reg));
+            emit_ldrb_reg_t1(e, 0, 1, 0);
+        }
         emit_clz(e, 0, 0);
         emit_lsrs_lo_imm(e, 0, 0, 5);
         return;
@@ -2223,6 +2292,7 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
     emit_ctx_t e;
     emit_init(&e, out_buf, out_cap);
     s_carry_dirty_r2 = false;
+    p_const_clear();
 
     /* Prologue. With HOIST, also save r5/r6 and pre-load budget/ops. */
 #if JIT_OPT_HOIST_BUDGET_OPS

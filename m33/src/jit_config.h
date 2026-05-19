@@ -49,9 +49,28 @@
  * fs=0). P-field ops are 1-nibble; the generic field-arith helper
  * still runs a loop and re-checks the field code, so calling it costs
  * ~30-40 cycles per Saturn op. Inlined emit is ~10 cycles. Big win on
- * the nqueens workload, which is dominated by P-field arith. */
+ * the nqueens workload, which is dominated by P-field arith. Split
+ * into a master flag and sub-flags (arith / copy / compare) so a
+ * specific sub-shape can be disabled for bisection without losing the
+ * others. */
 #ifndef JIT_OPT_INLINE_P_FIELD
 #define JIT_OPT_INLINE_P_FIELD 1
+#endif
+#ifndef JIT_OPT_INLINE_P_FIELD_ARITH
+#define JIT_OPT_INLINE_P_FIELD_ARITH 1
+#endif
+#ifndef JIT_OPT_INLINE_P_FIELD_COPY
+#define JIT_OPT_INLINE_P_FIELD_COPY 1
+#endif
+
+/* Track P statically across a block. When the translator can prove
+ * that P holds a known constant value (because the immediately-prior
+ * Saturn op was `P=imm`), bake that constant into the LDR/STR offsets
+ * of the inline P-field emit, saving the runtime `ldrb r0,[r4,#OFS(p)]`
+ * + ADD pair. Cleared on any P-mutating op (P=C n, CPEX n, P=P±1) and
+ * at block boundaries. Layered on top of INLINE_P_FIELD. */
+#ifndef JIT_OPT_TRACK_P_CONST
+#define JIT_OPT_TRACK_P_CONST 1
 #endif
 
 /* Inline 2-operand field sub (group E op 0..B, B op 0..B with fs<8). */
