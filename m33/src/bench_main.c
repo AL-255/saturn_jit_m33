@@ -105,7 +105,7 @@ static int crosscheck(const workload_t *wl, mode_t jit_mode) {
     saturn_t snap_interp, snap_jit;
 
     reset_for_workload(wl);
-    run_mode(jit_mode, 4000);
+    run_mode(jit_mode, 20000);
     uint64_t jit_ops = saturn.saturn_ops;
     snap_jit = saturn;
 
