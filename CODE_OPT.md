@@ -48,6 +48,8 @@ fuse with the inline sequence.
 | `JIT_OPT_INLINE_RSTK` | `rstk_push` / `rstk_pop` in GOSBVL / GOSUBL / RTN family | Fast path for the common rstk_ptr ∈ [0..6]; overflow/underflow falls back to the helper to preserve x48ng's shift-drop semantics. |
 | `JIT_OPT_INLINE_DAT` | 5-nibble DAT load/store (group 14x W-field) | Computes `&ram[d - ram_base]` inline. Bounds-checked at runtime; out-of-range falls back to the helper. memmix: 5.04 → 4.56 ms (-9.5%). |
 | `JIT_OPT_INLINE_ZEROTEST` | `?reg=0` / `?reg#0` A-field zero-test in compare-branches | Uses `CLZ` to turn "all nibbles 0" into a 0/1 condition with no IT block. Helps countloop where `?A=0` fires every iter. |
+| `JIT_OPT_INLINE_P_FIELD` | All P-field ops (1 nibble at index P). Subflags `_ARITH`, `_COPY` toggle the family in isolation for bisection. | Generic field helpers still loop + re-check the field code per call (~30 cycles); inlined emit is ~10 cycles of `ldrb`/`adds`/`lsrs`/`strb`. Big win for nqueens (2.6× the workload's JIT throughput). |
+| `JIT_OPT_TRACK_P_CONST` | Static P-tracking across a block | When the translator just emitted `P=imm`, subsequent P-field ops bake the constant into LDR/STR offsets and skip the runtime `ldrb r0,[r4,#OFS(p)]` + ADD pair. Cleared on any P-mutating op (P=C n, CPEX n, P=P±1) and at block boundaries. |
 
 A repeated theme: inline emit lets the *surrounding code* know what the
 op did. For example, INC/DEC's CBZ short-circuit only works because the
