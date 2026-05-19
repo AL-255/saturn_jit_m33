@@ -541,8 +541,10 @@ static void emit_inline_add_a(emit_ctx_t *e, int dst_id, int src_id) {
         }
         emit_hw(e, 0x1800 | (2 << 6) | (0 << 3) | 0);   /* adds r0, r0, r2 */
 #if JIT_OPT_FLAT_CARRY
-        /* sum is 0..31. carry-out = bit 4; result nibble = sum & 0xf. */
-        emit_ubfx(e, 2, 0, 4, 1);
+        /* sum is 0..31. carry-out = bit 4; result nibble = sum & 0xf.
+         * LSRS T1 (2 bytes) is narrower than UBFX T1 (4 bytes); the
+         * sum's high bits are 0 so LSR by 4 gives 0 or 1. */
+        emit_lsrs_lo_imm(e, 2, 0, 4);            /* lsrs r2, r0, #4 */
         emit_and_imm_small(e, 0, 0, 0x0f);
 #else
         emit_cmp_imm_t2(e, 0, 16);
