@@ -15,7 +15,8 @@
  *   2026-05-19 +cache-on            arith=10.6 memmix= 5.9 calltree=11.6 countloop=10.7
  *   2026-05-19 +INLINE_AZERO_COPY   arith= 6.7 memmix= 6.0 calltree=12.5 countloop=10.7
  *   2026-05-19 +INLINE_INCDEC_eebs  arith= 4.3 memmix= 5.0 calltree= 7.8 countloop= 7.0
- *   2026-05-19 +BLOCK_LINK          arith= 1.6 memmix= 3.7 calltree= 5.5 countloop= 4.3   <- last commit
+ *   2026-05-19 +BLOCK_LINK          arith= 1.6 memmix= 3.7 calltree= 5.5 countloop= 4.3
+ *   2026-05-19 +SELF_LOOP_DIRECT_B  arith= 1.3 memmix= 2.5 calltree= 5.5 countloop= 4.1   <- last commit
  */
 
 #ifndef JIT_CONFIG_H
@@ -196,6 +197,19 @@
  * shows. Default ON. */
 #ifndef JIT_OPT_NARROW_INCDEC
 #define JIT_OPT_NARROW_INCDEC 1
+#endif
+
+/* When a block's static next_pc is its own start_pc (i.e. the block ends
+ * with a GOTO back to its start), emit a direct B.W to body_off instead
+ * of loading the patchable link_target word and BX'ing through it. Saves
+ * movw + movt + ldr + bx (12 bytes / 4 insns) and one extra memory load
+ * per chained iteration in the tightest possible loops.
+ *
+ * Only activates for true self-loops detected at translate time; other
+ * chain patterns (A → B, A → A by way of dispatcher, etc.) keep the
+ * patchable indirect path. */
+#ifndef JIT_OPT_SELF_LOOP_DIRECT_BRANCH
+#define JIT_OPT_SELF_LOOP_DIRECT_BRANCH 1
 #endif
 
 /* Hoist saturn.budget_remaining and saturn.saturn_ops into callee-saved

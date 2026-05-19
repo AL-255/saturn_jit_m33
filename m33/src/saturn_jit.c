@@ -1208,7 +1208,12 @@ static block_step_t translate_group_1(emit_ctx_t *e, addr_t pc, uint32_t *consum
         emit_load_d(e, 0, d_idx);
         if (sub) emit_sub_imm_t3_small(e, 0, 0, amt);
         else     emit_add_imm_t3_small(e, 0, 0, amt);
-        /* Mask to 20 bits via movw r1,#0xFFFF; movt r1,#0xF; AND. */
+        /* Mask to 20 bits via movw r1,#0xFFFF; movt r1,#0xF; AND. We
+         * tried UBFX r0, r0, #0, #20 (one 4-byte insn) and it ran ~25%
+         * slower under QEMU TCG across all four workloads despite being
+         * 8 bytes smaller — TCG's UBFX backend handler is apparently
+         * heavier than the immediate AND it replaces. Real M33 hardware
+         * should prefer UBFX; revisit there. */
         emit_movw(e, 1, 0xFFFF);
         emit_movt(e, 1, 0x000F);
         emit_and_reg(e, 0, 0, 1);
@@ -1963,21 +1968,40 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                 }
                 emit_str_imm(&e, 1, 4, OFS(budget_remaining));
             }
-            if (ops != 0) {
-                uint32_t br;
-                if (ops > 0xff && ops <= 0xfff) {
-                    emit_cmp_imm_t2(&e, 1, 0);
+            {
+#if JIT_OPT_SELF_LOOP_DIRECT_BRANCH
+                bool self_loop = (next_pc == start_pc);
+#else
+                bool self_loop = false;
+#endif
+                if (ops != 0) {
+                    uint32_t br;
+                    if (ops > 0xff && ops <= 0xfff) {
+                        emit_cmp_imm_t2(&e, 1, 0);
+                    }
+                    br = emit_b_w_placeholder(&e, 0xB);
+                    if (self_loop) {
+                        /* Branch directly back to body start — no
+                         * patchable link target needed for self loops. */
+                        uint32_t b = emit_b_w_placeholder(&e, -1);
+                        emit_patch_b_w(&e, b, body_off_hw);
+                    } else {
+                        emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
+                        emit_ldr_imm(&e, 2, 2, 0);
+                        emit_bx(&e, 2);
+                    }
+                    uint32_t local_exit_pos = e.pos;
+                    emit_patch_b_w(&e, br, local_exit_pos);
+                } else {
+                    if (self_loop) {
+                        uint32_t b = emit_b_w_placeholder(&e, -1);
+                        emit_patch_b_w(&e, b, body_off_hw);
+                    } else {
+                        emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
+                        emit_ldr_imm(&e, 2, 2, 0);
+                        emit_bx(&e, 2);
+                    }
                 }
-                br = emit_b_w_placeholder(&e, 0xB);
-                emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
-                emit_ldr_imm(&e, 2, 2, 0);
-                emit_bx(&e, 2);
-                uint32_t local_exit_pos = e.pos;
-                emit_patch_b_w(&e, br, local_exit_pos);
-            } else {
-                emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
-                emit_ldr_imm(&e, 2, 2, 0);
-                emit_bx(&e, 2);
             }
             emit_hw(&e, EPILOGUE_POP_OP);
 #endif
