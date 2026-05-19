@@ -1474,6 +1474,23 @@ static void emit_compare_branch_tail_chainable(emit_ctx_t *e, const cb_targets_t
      * survive — use r1 for the saturn_ops bump and r2 for budget. */
     uint32_t ops_credit = s_block_ops_so_far + 1;
     if (ops_credit != 0) {
+#if JIT_OPT_HOIST_BUDGET_OPS
+        /* HOIST: counters live in r5/r6; just bump them. */
+#if !JIT_OPT_BUDGET_DRIVEN_OPS
+        if (ops_credit <= 0xff)        emit_adds_lo_imm8(e, 6, (uint8_t)ops_credit);
+        else if (ops_credit <= 0xfff)  emit_add_imm_t3_small(e, 6, 6, (uint16_t)ops_credit);
+        else { emit_mov_imm32(e, 12, ops_credit);
+               uint32_t hi = 0xEB00 | 6;
+               uint32_t lo = (0 << 12) | (6 << 8) | 12;
+               emit_w32(e, (hi << 16) | lo); }
+#endif
+        if (ops_credit <= 0xff)        emit_subs_lo_imm8(e, 5, (uint8_t)ops_credit);
+        else if (ops_credit <= 0xfff)  emit_sub_imm_t3_small(e, 5, 5, (uint16_t)ops_credit);
+        else { emit_mov_imm32(e, 12, ops_credit);
+               uint32_t hi = 0xEBA0 | 5;
+               uint32_t lo = (0 << 12) | (5 << 8) | 12;
+               emit_w32(e, (hi << 16) | lo); }
+#else
 #if !JIT_OPT_BUDGET_DRIVEN_OPS
         emit_ldr_imm(e, 1, 4, OFS(saturn_ops));
         if (ops_credit <= 0xff) {
@@ -1501,7 +1518,11 @@ static void emit_compare_branch_tail_chainable(emit_ctx_t *e, const cb_targets_t
             emit_w32(e, (hi << 16) | lo);
         }
         emit_str_imm(e, 2, 4, OFS(budget_remaining));
+#endif
     }
+    /* Flush hoisted r5/r6 if HOIST is on; no-op otherwise. The pop
+     * matches the prologue's reglist (just r4 or r4-r6). */
+    emit_flush_hoist(e);
     emit_hw(e, EPILOGUE_POP_OP);
 
     /* --- notaken path: carry already stored above (was 0) --- */
@@ -2019,6 +2040,24 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
             emit_hw(&e, 0x4280 | (2 << 3) | 0);             /* cmp r0, r2 */
             uint32_t br_miss = emit_b_w_placeholder(&e, 1); /* BNE → miss */
             if (ops != 0) {
+#if JIT_OPT_HOIST_BUDGET_OPS
+                /* HOIST: r5 = budget, r6 = saturn_ops live in registers
+                 * across the whole chain, so just bump them. */
+#if !JIT_OPT_BUDGET_DRIVEN_OPS
+                if (ops <= 0xff)      emit_adds_lo_imm8(&e, 6, (uint8_t)ops);
+                else if (ops <= 0xfff) emit_add_imm_t3_small(&e, 6, 6, (uint16_t)ops);
+                else { emit_mov_imm32(&e, 12, ops);
+                       uint32_t hi = 0xEB00 | 6;
+                       uint32_t lo = (0 << 12) | (6 << 8) | 12;
+                       emit_w32(&e, (hi << 16) | lo); }
+#endif
+                if (ops <= 0xff)      emit_subs_lo_imm8(&e, 5, (uint8_t)ops);
+                else if (ops <= 0xfff) emit_sub_imm_t3_small(&e, 5, 5, (uint16_t)ops);
+                else { emit_mov_imm32(&e, 12, ops);
+                       uint32_t hi = 0xEBA0 | 5;
+                       uint32_t lo = (0 << 12) | (5 << 8) | 12;
+                       emit_w32(&e, (hi << 16) | lo); }
+#else
 #if !JIT_OPT_BUDGET_DRIVEN_OPS
                 /* saturn_ops += ops in r2 (now free after cmp). */
                 emit_ldr_imm(&e, 2, 4, OFS(saturn_ops));
@@ -2039,6 +2078,7 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                        uint32_t lo = (0 << 12) | (2 << 8) | 12;
                        emit_w32(&e, (hi << 16) | lo); }
                 emit_str_imm(&e, 2, 4, OFS(budget_remaining));
+#endif
             }
             /* Chain via ic_ret_body (still in r3). */
             emit_bx(&e, 3);
