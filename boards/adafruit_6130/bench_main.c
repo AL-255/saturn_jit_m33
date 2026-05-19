@@ -33,17 +33,20 @@ extern void jit_psram_flush_after_emit(void);
 #endif
 
 #if defined(JIT_CACHE_REGION_PSRAM)
-/* The Pico SDK places anything in `.psram_data` into the PSRAM
- * region at 0x11000000+. We use a writable+executable buffer in PSRAM
- * for the JIT code cache, with 64-byte alignment so XIP cache lines
- * land cleanly. */
-__attribute__((section(".psram_data"), aligned(64)))
-static uint8_t g_jit_cache_buf[JIT_CACHE_BYTES];
+/* SDK 2.2 doesn't ship a `.psram_data` section for this board, so we
+ * skip the linker and point directly into the PSRAM XIP window at
+ * 0x11000000. psram_init() configures QMI CS1 + the XIP mapping
+ * before this buffer is touched. The size is whatever JIT_CACHE_BYTES
+ * is, capped at 8 MiB by the PSRAM chip. */
+static uint8_t *const g_jit_cache_buf = (uint8_t *)0x11000000u;
+static const uint32_t g_jit_cache_size = JIT_CACHE_BYTES;
 static const char *g_jit_cache_region_name = "psram";
 #else
 /* Default: on-chip SRAM. */
 __attribute__((aligned(64)))
-static uint8_t g_jit_cache_buf[JIT_CACHE_BYTES];
+static uint8_t g_jit_cache_storage[JIT_CACHE_BYTES];
+static uint8_t *const g_jit_cache_buf = g_jit_cache_storage;
+static const uint32_t g_jit_cache_size = sizeof g_jit_cache_storage;
 static const char *g_jit_cache_region_name = "sram";
 #endif
 
@@ -190,10 +193,10 @@ int main(void) {
         sh_puts("thumb2 selftest ok\n");
     }
 
-    jit_init(g_jit_cache_buf, sizeof g_jit_cache_buf);
+    jit_init(g_jit_cache_buf, g_jit_cache_size);
     {
         char b[64], *q = b;
-        q = strapp(q, "jit cache: "); q = u32_dec(q, (uint32_t)sizeof g_jit_cache_buf);
+        q = strapp(q, "jit cache: "); q = u32_dec(q, (uint32_t)g_jit_cache_size);
         q = strapp(q, " bytes @ "); q = u32_hex(q, (uint32_t)(uintptr_t)g_jit_cache_buf);
         q = strapp(q, "\n");
         *q = 0; sh_puts(b);

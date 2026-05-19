@@ -15,7 +15,11 @@ cmake_minimum_required(VERSION 3.13)
 
 # Pico SDK 2.x targets RP2350 with `set(PICO_PLATFORM rp2350-arm-s)`.
 set(PICO_PLATFORM rp2350-arm-s)
-set(PICO_BOARD adafruit_feather_rp2350_hstx CACHE STRING "Adafruit Feather RP2350 HSTX (6130)")
+# SDK 2.2 ships adafruit_feather_rp2350.h (no _hstx variant) — the
+# HSTX-variant board (Adafruit P/N 6130) is electrically the same
+# RP2350A core for our purposes; PSRAM CS pin override is applied
+# below via target_compile_definitions.
+set(PICO_BOARD adafruit_feather_rp2350 CACHE STRING "Adafruit Feather RP2350 (also covers 6130 HSTX+PSRAM)")
 
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 
@@ -31,6 +35,7 @@ set(JIT_CACHE_REGION "SRAM" CACHE STRING "JIT code cache region: SRAM or PSRAM")
 set_property(CACHE JIT_CACHE_REGION PROPERTY STRINGS SRAM PSRAM)
 
 set(JIT_CACHE_SIZE "262144" CACHE STRING "JIT code cache size in bytes")
+set(PSRAM_CS_PIN "8" CACHE STRING "GPIO for PSRAM chip select (Adafruit Feather RP2350 6130 expected to be 8)")
 
 # --- shared sources --------------------------------------------------
 
@@ -64,13 +69,19 @@ target_compile_definitions(bench PRIVATE
     BENCH_SKIP_JIT_OFF=1
     JIT_CACHE_REGION_${JIT_CACHE_REGION}=1
     JIT_CACHE_BYTES=${JIT_CACHE_SIZE}
+    PSRAM_CS_PIN=${PSRAM_CS_PIN}
+    # Wait up to 10 s after boot for the host to open the USB CDC port,
+    # otherwise the header + first RESULT lines are flushed before any
+    # capture session attaches.
+    PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=10000
+    PICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS=200
 )
 
 target_link_libraries(bench PRIVATE
     pico_stdlib
     hardware_dma
     hardware_timer
-    hardware_xip_cache
+    hardware_clocks
 )
 
 pico_enable_stdio_uart(bench 0)

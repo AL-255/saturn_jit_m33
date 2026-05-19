@@ -1,0 +1,17 @@
+psram init: CS pin GPIO8, base 0x11000000
+psram: GPIO8 set to XIP_CS1 (func 9)
+psram: pre-init direct_csr=0x00c10802
+psram: direct-mode init done, M1 configured for QPI XIP
+psram first read: 0x00000000
+PSRAM mismatch at 0x11000000: got 0x00000000, want 0xa5a5a500
+PSRAM mismatch at 0x11000004: got 0x00000000, want 0xa5a5a501
+PSRAM mismatch at 0x11000008: got 0x00000000, want 0xa5a5a502
+PSRAM mismatch at 0x1100000c: got 0x00000000, want 0xa5a5a503
+psram verify FAIL: 1024/1024 mismatches
+saturn_jit_rp2350 bench
+board=adafruit_6130
+jit_cache_region=psram
+tickfreq=150000000
+thumb2 selftest ok
+jit cache: 262144 bytes @ 0x11000000
+RESULT,arith,interp,ops=200000,ticks=22947711,br_taken=19999,status=0,final_pc=0x00000019

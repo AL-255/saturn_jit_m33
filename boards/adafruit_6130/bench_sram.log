@@ -1,0 +1,22 @@
+saturn_jit_rp2350 bench
+board=adafruit_6130
+jit_cache_region=sram
+tickfreq=150000000
+thumb2 selftest ok
+jit cache: 262144 bytes @ 0x200014c0
+RESULT,arith,interp,ops=200000,ticks=23070212,br_taken=19999,status=0,final_pc=0x00000019
+RESULT,arith,jit-on,ops=200017,ticks=3896096,br_taken=20001,status=0,final_pc=0x00000013,blocks=2,hits=3,misses=2,evicts=0,bytes=1618,fallback=0
+RESULT,arith,jit-warm,ops=200017,ticks=3802836,br_taken=20001,status=0,final_pc=0x00000013,blocks=2,hits=4,misses=2,evicts=0,bytes=1618,fallback=0
+RESULT,memmix,interp,ops=200000,ticks=23895567,br_taken=33332,status=0,final_pc=0x0000001c
+RESULT,memmix,jit-on,ops=200010,ticks=5106067,br_taken=33334,status=0,final_pc=0x00000016,blocks=2,hits=3,misses=2,evicts=0,bytes=782,fallback=0
+RESULT,memmix,jit-warm,ops=200010,ticks=5040756,br_taken=33334,status=0,final_pc=0x00000016,blocks=2,hits=4,misses=2,evicts=0,bytes=782,fallback=0
+RESULT,calltree,interp,ops=200000,ticks=21288443,br_taken=66665,status=0,final_pc=0x0000000f
+RESULT,calltree,jit-on,ops=200008,ticks=4849220,br_taken=66668,status=0,final_pc=0x00000008,blocks=4,hits=3,misses=4,evicts=0,bytes=740,fallback=0
+RESULT,calltree,jit-warm,ops=200008,ticks=4775115,br_taken=66668,status=0,final_pc=0x00000008,blocks=4,hits=4,misses=4,evicts=0,bytes=740,fallback=0
+RESULT,countloop,interp,ops=200000,ticks=20567026,br_taken=49229,status=0,final_pc=0x00000012
+RESULT,countloop,jit-on,ops=200015,ticks=3114267,br_taken=49233,status=0,final_pc=0x0000000e,blocks=3,hits=3079,misses=3,evicts=0,bytes=1104,fallback=0
+RESULT,countloop,jit-warm,ops=200015,ticks=3041810,br_taken=49233,status=0,final_pc=0x0000000e,blocks=3,hits=3203,misses=3,evicts=0,bytes=1104,fallback=0
+RESULT,nqueens,interp,ops=200000,ticks=20613009,br_taken=14597,status=0,final_pc=0x00000019
+RESULT,nqueens,jit-on,ops=200041,ticks=3845415,br_taken=14601,status=0,final_pc=0x00000019,blocks=3,hits=13138,misses=3,evicts=0,bytes=1442,fallback=0
+RESULT,nqueens,jit-warm,ops=200041,ticks=3742309,br_taken=14601,status=0,final_pc=0x00000019,blocks=3,hits=13664,misses=3,evicts=0,bytes=1442,fallback=0
+done.

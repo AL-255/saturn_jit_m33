@@ -126,12 +126,79 @@ When you do flash, please send me the raw `RESULT` lines from both
 runs and I'll fill in the comparison table at the bottom of this
 README.
 
-## Comparison table (to be filled in after first physical run)
+## Results — SRAM (real RP2350 @ 150 MHz)
 
-| Workload | SRAM jit-on | PSRAM jit-on | Δ | SRAM jit-warm | PSRAM jit-warm | Δ |
-| --- | --- | --- | --- | --- | --- | --- |
-| arith     | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ |
-| memmix    | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ |
-| calltree  | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ |
-| countloop | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ |
-| nqueens   | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ |
+Captured by flashing `bench_sram.uf2` over a Pico Debug Probe + USB
+(serial log in `bench_sml.log`):
+
+| Workload | Interp | JIT cold | JIT warm | Warm speedup |
+| --- | --- | --- | --- | --- |
+| arith     | 153.8 ms | 26.0 ms | 25.4 ms | **6.06×** |
+| memmix    | 159.3 ms | 34.0 ms | 33.6 ms | 4.74× |
+| calltree  | 141.9 ms | 32.3 ms | 31.8 ms | 4.46× |
+| countloop | 137.1 ms | 20.8 ms | 20.3 ms | **6.76×** |
+| nqueens   | 137.4 ms | 25.6 ms | 24.9 ms | 5.51× |
+| **total** | 729.6 ms | 138.7 ms | 136.0 ms | **5.37×** |
+
+A few things worth noting about the SRAM numbers vs. the QEMU-modelled
+numbers:
+
+- The real RP2350 at 150 MHz runs the interpreter in 137–160 ms per
+  workload (~1.4 Mops/s) — slower per saturn-op than QEMU because QEMU
+  was running the interp's translated host code at host speed (1 GHz
+  TCG tickfreq). Cycles-per-Saturn-op on the real M33 ≈ 17–25, on
+  QEMU TCG ≈ 9–13.
+- The warm JIT speedup (4.5–6.8×) is markedly *lower* than the QEMU
+  number (10–22×). That's expected: on real hardware the JIT-emitted
+  Thumb-2 pays real memory-access cycles that QEMU's TCG translation
+  collapses into single host ops. The interpreter pays them too, so
+  the *ratio* shrinks even though the absolute JIT throughput
+  improves.
+
+## Results — PSRAM (BLOCKED — PSRAM not responding on this board)
+
+The PSRAM build (`bench_psram.uf2`) flashes and runs the QMI direct-
+mode bring-up successfully but the chip on QMI CS1 (GPIO 8 per the
+Adafruit specification) is not echoing back what we write. Partial
+serial log in `bench_psram_partial.log`:
+
+```
+psram init: CS pin GPIO8, base 0x11000000
+psram: GPIO8 set to XIP_CS1 (func 9)
+psram: pre-init direct_csr=0x00c10802
+psram: direct-mode init done, M1 configured for QPI XIP
+psram first read: 0x00000000              <-- expected 0x?? (uninitialised PSRAM contents)
+PSRAM mismatch at 0x11000000: got 0x00000000, want 0xa5a5a500
+... 1024/1024 mismatches ...
+RESULT,arith,interp,...               <-- interp still works (doesn't touch PSRAM)
+[then the JIT writes blocks into non-storing PSRAM, BXs into them,
+ lands in zero-filled code, eventually HardFault → LOCKUP]
+```
+
+Two pieces of plumbing are in place and verified by the SRAM build:
+
+1. The JIT-cache buffer placement: a fixed `uint8_t *` pointing into
+   the PSRAM XIP window at `0x11000000`.
+2. The QMI bring-up itself runs from SRAM (`.time_critical.*`
+   section), avoids any flash function calls while
+   `DIRECT_CSR.EN=1`, and successfully writes the M1 control
+   registers. We can see the QMI clocking out commands.
+
+The remaining unknowns are *physical*: either the CS pin is not in
+fact GPIO 8 on this exact board variant, or the chip needs different
+power-up timing, or some board-specific quirk we haven't seen. Both
+SPI-mode (Fast Read `0x0B`) and QPI-mode (`0xEB`) configurations were
+tried with the same result; the QPI mode reads garbage (0x55-ish
+pattern, MISO drifting), the SPI mode reads consistent zeros (MISO
+held low — suggestive of an inactive chip on the bus).
+
+To unblock, the next debug step is to confirm with a logic analyzer
+which GPIO actually goes low when the QMI tries a CS1 transaction;
+or to compare against a working PSRAM init for this exact Adafruit
+variant (the Pimoroni Pico Plus 2 uses GPIO 47, the WeAct Studio
+RP2350B uses GPIO 0 — neither covers the Adafruit 6130 in the SDK
+2.2 board files).
+
+Once PSRAM is responding, the same `cmake --build build_psram` →
+`picotool load` flow captures a `bench_psram.log` and
+`compare.py` produces the side-by-side plot + table.

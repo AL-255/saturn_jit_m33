@@ -1,0 +1,9 @@
+build_sram/
+build_psram/
+build/
+*.elf
+*.uf2
+*.bin
+*.hex
+*.map
+*.dis
