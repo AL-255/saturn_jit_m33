@@ -129,9 +129,9 @@ README.
 ## Results — SRAM (real RP2350 @ 150 MHz)
 
 Captured by flashing `bench_sram.uf2` over a Pico Debug Probe + USB
-(serial log in `bench_sml.log`):
+(serial log in `bench_sram.log`):
 
-| Workload | Interp | JIT cold | JIT warm | Warm speedup |
+| Workload | Interp | JIT cold | JIT warm | Warm speedup (vs RP2350 interp) |
 | --- | --- | --- | --- | --- |
 | arith     | 153.8 ms | 26.0 ms | 25.4 ms | **6.06×** |
 | memmix    | 159.3 ms | 34.0 ms | 33.6 ms | 4.74× |
@@ -139,6 +139,28 @@ Captured by flashing `bench_sram.uf2` over a Pico Debug Probe + USB
 | countloop | 137.1 ms | 20.8 ms | 20.3 ms | **6.76×** |
 | nqueens   | 137.4 ms | 25.6 ms | 24.9 ms | 5.51× |
 | **total** | 729.6 ms | 138.7 ms | 136.0 ms | **5.37×** |
+
+### Original HP 48GX comparison — N-queens
+
+The same N-queens Saturn-assembly program (the one this repo's
+`workload_nqueens` bytewise emulates, modulo the leading `SAVPTR` /
+trailing `PUSHhxs+PUSH#ALOOP` ROM hooks that the bench replaces with a
+restart) runs in **336 ms on a stock HP 48GX** (2 MHz Saturn, original
+1990 hardware). Same Saturn ops, same algorithm, different host:
+
+| Host | nqueens time | vs. HP 48GX | Notes |
+| --- | --- | --- | --- |
+| **HP 48GX** (2 MHz Saturn, native) | 336 ms     | 1.0×    | Original hardware baseline |
+| RP2350 @ 150 MHz, interp           | 137.4 ms   | **2.4×** | C interpreter (`-O3`), no JIT |
+| RP2350 @ 150 MHz, JIT cold         | 25.6 ms    | **13.1×**| First-pass translate + execute |
+| RP2350 @ 150 MHz, JIT warm         | 24.9 ms    | **13.5×**| Cache pre-populated |
+
+So this Saturn JIT on a single Cortex-M33 core at 150 MHz is about an
+**order of magnitude faster** at running native HP-48 ROM code than
+the original 48GX. The interpreter alone — no JIT — is already 2.4×
+faster, which is what you'd expect from a 150 MHz general-purpose
+core decoding a 2 MHz BCD CPU; the JIT then folds the per-op decode
+overhead away.
 
 A few things worth noting about the SRAM numbers vs. the QEMU-modelled
 numbers:
