@@ -1830,7 +1830,54 @@ static void emit_compare_branch_tail(emit_ctx_t *e, const cb_targets_t *t) {
 
 /* Compute a register-pair compare condition and leave 0/1 in r0.
  * Uses (a_reg, b_reg) and a field code. */
+/* Helper-key tag so emit_pair_compare can pick the right inline shape
+ * when the caller wants P-field inlining. Each call site passes the
+ * actual C helper plus an op tag (EQ / GT / LT). */
+typedef enum { PCOMP_EQ, PCOMP_GT, PCOMP_LT } pcomp_kind_t;
+
 static void emit_pair_compare(emit_ctx_t *e, int a_reg, int b_reg, int field, const void *helper) {
+#if JIT_OPT_INLINE_P_FIELD
+    /* P-field compare is a 1-nibble compare. Load both nibbles, do a
+     * 3-instruction equality test (subs + clz + lsr) into r0. The C
+     * helper would do the same work behind a function call. */
+    if (field == 0 && helper == (const void *)reg_eq) {
+        emit_ldrb_imm(e, 0, 4, OFS(p));
+        emit_add_imm_t3_small(e, 1, 4, OFS_REG(a_reg));
+        emit_ldrb_reg_t1(e, 2, 1, 0);
+        emit_add_imm_t3_small(e, 1, 4, OFS_REG(b_reg));
+        emit_ldrb_reg_t1(e, 3, 1, 0);
+        /* r0 = (r2 == r3) ? 1 : 0  via subs/clz/lsr. */
+        /* subs r0, r2, r3 (T1) */
+        emit_hw(e, 0x1A00 | (3 << 6) | (2 << 3) | 0);
+        emit_clz(e, 0, 0);
+        emit_lsrs_lo_imm(e, 0, 0, 5);
+        return;
+    }
+    if (field == 0 && (helper == (const void *)reg_gt ||
+                       helper == (const void *)reg_lt)) {
+        emit_ldrb_imm(e, 0, 4, OFS(p));
+        emit_add_imm_t3_small(e, 1, 4, OFS_REG(a_reg));
+        emit_ldrb_reg_t1(e, 2, 1, 0);
+        emit_add_imm_t3_small(e, 1, 4, OFS_REG(b_reg));
+        emit_ldrb_reg_t1(e, 3, 1, 0);
+        /* For GT: r0 = (a > b) ? 1 : 0. Use subs r0, r2, r3 then check
+         * sign / zero. (a>b) ⇔ (a-b > 0) ⇔ (sign==0 && a!=b). */
+        /* subs r0, r2, r3 sets flags. */
+        emit_hw(e, 0x1A00 | (3 << 6) | (2 << 3) | 0);
+        if (helper == (const void *)reg_gt) {
+            /* ite gt; mov r0,#1; mov r0,#0 */
+            emit_hw(e, 0xBFCC);                 /* ITE GT */
+            emit_mov_lo_imm8(e, 0, 1);
+            emit_mov_lo_imm8(e, 0, 0);
+        } else {
+            /* ite lt; mov r0,#1; mov r0,#0 */
+            emit_hw(e, 0xBFBC);                 /* ITE LT */
+            emit_mov_lo_imm8(e, 0, 1);
+            emit_mov_lo_imm8(e, 0, 0);
+        }
+        return;
+    }
+#endif
     emit_add_imm_t3_small(e, 0, 4, OFS_REG(a_reg));
     emit_add_imm_t3_small(e, 1, 4, OFS_REG(b_reg));
     emit_mov_imm32(e, 2, field);
@@ -1847,6 +1894,17 @@ static void emit_zero_test(emit_ctx_t *e, int reg, int field, const void *helper
         emit_orrs_lo(e, 0, 1);                /* r0 = combined, sets flags */
         emit_clz(e, 0, 0);                    /* 32 if r0 was 0, else < 32 */
         emit_lsrs_lo_imm(e, 0, 0, 5);         /* r0 = 1 iff all-zero, else 0 */
+        return;
+    }
+#endif
+#if JIT_OPT_INLINE_P_FIELD
+    /* P-field zero-test: 1 nibble at [reg + P]. */
+    if (field == 0) {
+        emit_ldrb_imm(e, 0, 4, OFS(p));
+        emit_add_imm_t3_small(e, 1, 4, OFS_REG(reg));
+        emit_ldrb_reg_t1(e, 0, 1, 0);
+        emit_clz(e, 0, 0);
+        emit_lsrs_lo_imm(e, 0, 0, 5);
         return;
     }
 #endif
