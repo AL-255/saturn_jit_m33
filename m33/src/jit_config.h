@@ -295,4 +295,14 @@
 #define JIT_OPT_HOIST_BUDGET_OPS 0
 #endif
 
+/* Skip the JIT-emitted saturn_branches_taken / saturn_branches_skipped
+ * counter bumps. Saves ~3 instructions per GOTO and per compare-branch
+ * (taken or skipped), which fires every chained loop iteration. The
+ * counters are only used by the benchmark's RESULT line; disabling
+ * them changes the printed br_taken to 0 but doesn't affect any
+ * functional or cross-check behaviour. */
+#ifndef JIT_OPT_SKIP_BRANCH_COUNTERS
+#define JIT_OPT_SKIP_BRANCH_COUNTERS 0
+#endif
+
 #endif

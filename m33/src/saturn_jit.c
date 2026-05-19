@@ -1329,18 +1329,22 @@ static block_step_t translate_group_8_branch(emit_ctx_t *e, addr_t pc, addr_t *o
         *out_next = (pc + sext_nib(d, 4) + 2) & 0xFFFFFu;
         *consumed = 6;
         /* branch counter bump */
+#if !JIT_OPT_SKIP_BRANCH_COUNTERS
         emit_ldr_imm(e, 0, 4, OFS(saturn_branches_taken));
         emit_add_imm_t3_small(e, 0, 0, 1);
         emit_str_imm(e, 0, 4, OFS(saturn_branches_taken));
+#endif
         return BLK_END;
     }
     case 0xD: {     /* GOTO abs */
         addr_t a = fetch_k(pc + 2, 5);
         *out_next = a & 0xFFFFFu;
         *consumed = 7;
+#if !JIT_OPT_SKIP_BRANCH_COUNTERS
         emit_ldr_imm(e, 0, 4, OFS(saturn_branches_taken));
         emit_add_imm_t3_small(e, 0, 0, 1);
         emit_str_imm(e, 0, 4, OFS(saturn_branches_taken));
+#endif
         return BLK_END;
     }
     case 0xE: {     /* GOSUBL ±dddd : push pc+6, then jump */
@@ -1350,9 +1354,11 @@ static block_step_t translate_group_8_branch(emit_ctx_t *e, addr_t pc, addr_t *o
         emit_inline_rstk_push(e);
         *out_next = target;
         *consumed = 6;
+#if !JIT_OPT_SKIP_BRANCH_COUNTERS
         emit_ldr_imm(e, 0, 4, OFS(saturn_branches_taken));
         emit_add_imm_t3_small(e, 0, 0, 1);
         emit_str_imm(e, 0, 4, OFS(saturn_branches_taken));
+#endif
         return BLK_END;
     }
     case 0xF: {     /* GOSBVL abs */
@@ -1361,9 +1367,11 @@ static block_step_t translate_group_8_branch(emit_ctx_t *e, addr_t pc, addr_t *o
         emit_inline_rstk_push(e);
         *out_next = a & 0xFFFFFu;
         *consumed = 7;
+#if !JIT_OPT_SKIP_BRANCH_COUNTERS
         emit_ldr_imm(e, 0, 4, OFS(saturn_branches_taken));
         emit_add_imm_t3_small(e, 0, 0, 1);
         emit_str_imm(e, 0, 4, OFS(saturn_branches_taken));
+#endif
         return BLK_END;
     }
     default:
@@ -1424,9 +1432,13 @@ typedef struct {
 } cb_targets_t;
 
 static void emit_branch_counter(emit_ctx_t *e, uint16_t ofs) {
+#if JIT_OPT_SKIP_BRANCH_COUNTERS
+    (void)e; (void)ofs;
+#else
     emit_ldr_imm(e, 1, 4, ofs);
     emit_add_imm_t3_small(e, 1, 1, 1);
     emit_str_imm(e, 1, 4, ofs);
+#endif
 }
 
 #if JIT_OPT_CB_CHAIN_NOTAKEN
@@ -1844,10 +1856,11 @@ static block_step_t translate_group_6(emit_ctx_t *e, addr_t pc, addr_t *out_next
     if (ddd == 4) { *out_next = (pc + 5) & 0xFFFFFu; return BLK_END; }
     int32_t signed_ddd = sext_nib(ddd, 3);
     *out_next = (pc + signed_ddd + 1) & 0xFFFFFu;
-    /* bump branch counter */
+#if !JIT_OPT_SKIP_BRANCH_COUNTERS
     emit_ldr_imm(e, 0, 4, OFS(saturn_branches_taken));
     emit_add_imm_t3_small(e, 0, 0, 1);
     emit_str_imm(e, 0, 4, OFS(saturn_branches_taken));
+#endif
     (void)e;
     return BLK_END;
 }
