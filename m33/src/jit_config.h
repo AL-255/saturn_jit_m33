@@ -67,6 +67,26 @@
 #define JIT_OPT_FLAT_CARRY 1
 #endif
 
+/* Defer per-op carry-store to block exit. Each inline ADD/SUB/INC/DEC
+ * currently emits `strb r2, [r4, #OFS(carry)]` (4 bytes, 1 cycle) at
+ * the end of its emit. In a chain of arith ops, only the LAST carry
+ * value matters before block exit — intermediate stores are dead.
+ *
+ * Default OFF under QEMU: measured ~7-20% slower across workloads
+ * because QEMU's TCG host-side translation does NOT model store-buffer
+ * stalls, so eliminating stores doesn't help host execution. On real
+ * M33 hardware (where 4-5 fewer write-buffer flushes per loop iter
+ * meaningfully reduces stall cycles) this is expected to be a win.
+ *
+ * Implementation maintains s_carry_dirty_r2 in the translator and
+ * inserts emit_flush_carry() calls before any read of saturn.carry
+ * (GOC/GONC) or before any helper BL that would clobber r2 (RTN
+ * family). discard_pending_carry() is called when an op explicitly
+ * overwrites saturn.carry (compare-branch, RTNSC/RTNCC, P±1). */
+#ifndef JIT_OPT_DEFER_CARRY
+#define JIT_OPT_DEFER_CARRY 0
+#endif
+
 /* Inline ?reg=0 / ?reg#0 A-field zero-test inside the compare-branch
  * emitter, instead of calling reg_is_zero. Uses CLZ to turn "all
  * nibbles 0" into a 0/1 condition without IT or branches.

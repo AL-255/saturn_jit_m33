@@ -46,6 +46,30 @@
 #define OFS(field)      ((uint16_t)offsetof(saturn_t, field))
 #define OFS_REG(rname)  ((uint16_t)(offsetof(saturn_t, reg) + (rname) * NIB_PER_REG))
 
+/* Tracks whether r2 currently holds a fresh carry value from an inline
+ * arith emit that hasn't been stored to saturn.carry. Used by
+ * JIT_OPT_DEFER_CARRY to coalesce multiple carry stores into one at
+ * block exit. Reset at every translate entry. */
+static bool s_carry_dirty_r2;
+
+/* Forward decl for use in inline arith emits below. */
+static void emit_strb_smart(emit_ctx_t *e, int rt, int rn, uint16_t imm);
+
+/* Flush r2 → saturn.carry if any pending inline-arith carry is alive.
+ * Called before any read of saturn.carry (e.g. GOC/GONC) and before
+ * block exit. */
+static void emit_flush_carry(emit_ctx_t *e) {
+    if (s_carry_dirty_r2) {
+        emit_strb_smart(e, 2, 4, OFS(carry));
+        s_carry_dirty_r2 = false;
+    }
+}
+
+/* Called by translators that explicitly OVERWRITE saturn.carry (compare-
+ * branch, RTNSC/RTNCC, P±1): the prior in-r2 carry is dead, so just
+ * clear the dirty flag without emitting a store. */
+static void discard_pending_carry(void) { s_carry_dirty_r2 = false; }
+
 /* Stage-2 op categories we know how to translate. */
 typedef enum {
     BLK_CONTINUE,    /* op translated, keep going */
@@ -310,8 +334,11 @@ static void emit_inline_inc_a(emit_ctx_t *e, int reg_id) {
         if (i < 4) cbzs[cbz_count++] = emit_cbz_placeholder(e, 2);
     }
     uint32_t tail = e->pos;
+#if !JIT_OPT_DEFER_CARRY
     emit_strb_smart(e, 2, 4, OFS(carry));
+#endif
     for (int k = 0; k < cbz_count; k++) emit_patch_cbz(e, cbzs[k], tail);
+    s_carry_dirty_r2 = true;
 }
 
 /* Inline DEC — same shape but subtraction with underflow detection.
@@ -376,7 +403,10 @@ static void emit_inline_add_a(emit_ctx_t *e, int dst_id, int src_id) {
 #endif
         emit_strb_smart(e, 0, 4, dst + i);
     }
+#if !JIT_OPT_DEFER_CARRY
     emit_strb_smart(e, 2, 4, OFS(carry));
+#endif
+    s_carry_dirty_r2 = true;
 }
 
 /* Inline field-sub A-field, hex mode. dst = dst - src in A-field.
@@ -424,7 +454,10 @@ static void emit_inline_sub_a(emit_ctx_t *e, int dst_id, int a_id, int b_id) {
 #endif
         emit_strb_smart(e, 0, 4, dst + i);
     }
+#if !JIT_OPT_DEFER_CARRY
     emit_strb_smart(e, 2, 4, OFS(carry));
+#endif
+    s_carry_dirty_r2 = true;
 }
 
 static void emit_inline_dec_a(emit_ctx_t *e, int reg_id) {
@@ -443,8 +476,11 @@ static void emit_inline_dec_a(emit_ctx_t *e, int reg_id) {
         if (i < 4) cbzs[cbz_count++] = emit_cbz_placeholder(e, 2);
     }
     uint32_t tail = e->pos;
+#if !JIT_OPT_DEFER_CARRY
     emit_strb_smart(e, 2, 4, OFS(carry));
+#endif
     for (int k = 0; k < cbz_count; k++) emit_patch_cbz(e, cbzs[k], tail);
+    s_carry_dirty_r2 = true;
 }
 
 /* Emit a saturn.saturn_ops += N update.
@@ -739,15 +775,16 @@ static block_step_t translate_group_0(emit_ctx_t *e, addr_t pc, addr_t *out_next
     int n1 = fetch_nib(pc + 1);
     switch (n1) {
     case 0x0: { /* RTNSXM : ST[XM]=1; PC = pop_rstk() */
+        emit_flush_carry(e);  /* RTN preserves carry; BL clobbers r2 */
         emit_mov_imm32(e, 0, 1);
         emit_strb_imm(e, 0, 4, OFS(st));
-        emit_mov_any(e, 0, 4);                /* r0 = &saturn */
+        emit_mov_any(e, 0, 4);
         emit_bl_to(e, (const void *)jit_rstk_pop);
-        /* r0 now has the popped PC — block ends with PC in r0. */
         *out_next = 0;
         return BLK_END_DYN;
     }
     case 0x1: { /* RTN */
+        emit_flush_carry(e);
         emit_mov_any(e, 0, 4);
         emit_bl_to(e, (const void *)jit_rstk_pop);
         *out_next = 0;
@@ -758,6 +795,7 @@ static block_step_t translate_group_0(emit_ctx_t *e, addr_t pc, addr_t *out_next
         emit_bl_to(e, (const void *)jit_rstk_pop);
         emit_mov_imm32(e, 1, 1);
         emit_strb_imm(e, 1, 4, OFS(carry));
+        discard_pending_carry();
         *out_next = 0;
         return BLK_END_DYN;
     }
@@ -766,6 +804,7 @@ static block_step_t translate_group_0(emit_ctx_t *e, addr_t pc, addr_t *out_next
         emit_bl_to(e, (const void *)jit_rstk_pop);
         emit_mov_imm32(e, 1, 0);
         emit_strb_imm(e, 1, 4, OFS(carry));
+        discard_pending_carry();
         *out_next = 0;
         return BLK_END_DYN;
     }
@@ -780,35 +819,27 @@ static block_step_t translate_group_0(emit_ctx_t *e, addr_t pc, addr_t *out_next
     case 0xC: /* P=P+1; carry if wraps */
         emit_ldrb_imm(e, 0, 4, OFS(p));
         emit_add_imm_t3_small(e, 0, 0, 1);
-        /* and r0, r0, #0xf — emit AND.W imm */
-        /* For simplicity use modified-immediate AND: 1111 0i 00 0000 Rn / 0 imm3 Rd imm8.
-         * The 8-bit unmodified imm form: imm12 = 0x0F means i=0, imm3=0, imm8=0x0F. */
         {
-            uint32_t hi = 0xF000 | (0 << 10) | 0;  /* AND, S=0, Rn=0 */
+            uint32_t hi = 0xF000 | (0 << 10) | 0;
             uint32_t lo = (0 << 12) | (0 << 8) | 0x0F;
             emit_w32(e, (hi << 16) | lo);
         }
         emit_strb_imm(e, 0, 4, OFS(p));
-        /* carry := (p == 0) — compare and store 0/1. */
-        emit_cmp_imm_t2(e, 0, 0);
-        /* ite eq ; movs r1, #1 ; movs r1, #0 — IT instructions are
-         * supported on M33. Encoding: 1011 1111 cond mask. eq = 0,
-         * mask 1000 = then-only. So `it eq` = 0xBF08. Then movs r1,#1
-         * (16-bit) = 0x2101, then unconditional movs r1,#0 = 0x2100.
-         * We need IT EE (then-else) actually. Use BF0C = "ite eq". */
-        emit_hw(e, 0xBF0C);          /* IT EE on EQ (then = movs#1 / else = movs#0) */
-        emit_mov_lo_imm8(e, 1, 1);   /* eq → r1 = 1 */
-        emit_mov_lo_imm8(e, 1, 0);   /* ne → r1 = 0 */
-        emit_strb_imm(e, 1, 4, OFS(carry));
-        return BLK_CONTINUE;
-    case 0xD: /* P=P-1; carry if was 0 before */
-        emit_ldrb_imm(e, 0, 4, OFS(p));
-        /* carry := (p == 0) before decrement */
         emit_cmp_imm_t2(e, 0, 0);
         emit_hw(e, 0xBF0C);
         emit_mov_lo_imm8(e, 1, 1);
         emit_mov_lo_imm8(e, 1, 0);
         emit_strb_imm(e, 1, 4, OFS(carry));
+        discard_pending_carry();
+        return BLK_CONTINUE;
+    case 0xD: /* P=P-1; carry if was 0 before */
+        emit_ldrb_imm(e, 0, 4, OFS(p));
+        emit_cmp_imm_t2(e, 0, 0);
+        emit_hw(e, 0xBF0C);
+        emit_mov_lo_imm8(e, 1, 1);
+        emit_mov_lo_imm8(e, 1, 0);
+        emit_strb_imm(e, 1, 4, OFS(carry));
+        discard_pending_carry();
         emit_sub_imm_t3_small(e, 0, 0, 1);
         {
             uint32_t hi = 0xF000 | 0;
@@ -818,6 +849,7 @@ static block_step_t translate_group_0(emit_ctx_t *e, addr_t pc, addr_t *out_next
         emit_strb_imm(e, 0, 4, OFS(p));
         return BLK_CONTINUE;
     case 0xF: /* RTI : pop and resume */
+        emit_flush_carry(e);
         emit_mov_any(e, 0, 4);
         emit_bl_to(e, (const void *)jit_rstk_pop);
         *out_next = 0;
@@ -1219,6 +1251,9 @@ static void emit_compare_branch_tail(emit_ctx_t *e, const cb_targets_t *t) {
     uint32_t L_end = e->pos;
     emit_patch_b_w(e, br, L_notaken);
     emit_patch_b_w(e, br_end, L_end);
+    /* Both paths wrote saturn.carry explicitly. Any pending r2 carry
+     * from prior inline arith is now superseded. */
+    discard_pending_carry();
 }
 
 /* Compute a register-pair compare condition and leave 0/1 in r0.
@@ -1430,6 +1465,9 @@ static block_step_t translate_group_9(emit_ctx_t *e, addr_t pc, uint32_t *consum
 static block_step_t translate_group_4_or_5(emit_ctx_t *e, addr_t pc, uint32_t *consumed, bool branch_if_carry) {
     uint32_t dd = fetch_k(pc + 1, 2);
     *consumed = 3;
+    /* If a prior inline arith left carry in r2 (DEFER_CARRY), flush
+     * to memory now so the ldrb below reads the up-to-date value. */
+    emit_flush_carry(e);
     /* Load carry into r0 (it's already a 0/1 byte). */
     emit_ldrb_imm(e, 0, 4, OFS(carry));
     if (!branch_if_carry) {
@@ -1524,6 +1562,7 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                                            uintptr_t *link_target) {
     emit_ctx_t e;
     emit_init(&e, out_buf, out_cap);
+    s_carry_dirty_r2 = false;
 
     /* Prologue */
     emit_push(&e, (1 << 4) | (1 << 14));         /* push {r4, lr} */
@@ -1617,6 +1656,8 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
      *   str  r1, [r4, #ofs_ops]
      *   pop  {r4, pc}     // r0 = the popped PC we set earlier
      */
+    /* Flush any pending carry held in r2 from inline arith. */
+    emit_flush_carry(&e);
     if (dyn_end) {
 #if !JIT_OPT_OPS_COUNTER_IN_C
         if (ops != 0) {
