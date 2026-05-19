@@ -311,13 +311,12 @@
  * setup. INLINE_DAT then needs only 2 ldrs + cmp + add (4 instrs)
  * for the bounds check vs the original 4 ldrs + subs + cmp + add (7).
  *
- * Default OFF: under QEMU TCG memmix regresses ~10% despite the
- * shorter emit (782 → 742 bytes). Same artifact as other memmix-
- * regression-on-layout-change attempts; the inline-DAT block is
- * sensitive to TCG's instruction-cache layout in a way I haven't
- * managed to disentangle. The optimization should be uniformly
- * positive on real M33 hardware where the emit size shrinking
- * matters and TCG isn't in the picture. */
+ * Default OFF: under QEMU TCG memmix still regresses +13% even with
+ * the new fields appended to saturn_t (no offset shift). The emit
+ * shrink alone (782 → 742 bytes for memmix) is enough to trigger
+ * memmix's TCG-translation-cache layout sensitivity. arith / calltree
+ * each pick up ~3-5% from this flag; on real M33 the win should be
+ * uniform. */
 #ifndef JIT_OPT_PRECOMPUTE_RAM_BOUND
 #define JIT_OPT_PRECOMPUTE_RAM_BOUND 0
 #endif
