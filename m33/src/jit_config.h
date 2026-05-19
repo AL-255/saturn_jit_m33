@@ -67,6 +67,24 @@
 #define JIT_OPT_FLAT_CARRY 1
 #endif
 
+/* Inline group-3 LC (load constant into C[P..P+n]) for small n.
+ * Currently every LC goes through jit_lc_copy helper. For n ≤ 4 we
+ * can emit a small inline sequence using STRB register-offset.
+ *
+ * Default OFF: measured 25-28% SLOWER on arith and calltree under
+ * QEMU, ~same on countloop (which was supposed to benefit). QEMU
+ * TCG likely models inline integer code less efficiently per-insn
+ * than my model assumes. Cross-check still passes; the inline emit
+ * is semantically correct. Re-evaluate on real hardware. */
+#ifndef JIT_OPT_INLINE_LC
+#define JIT_OPT_INLINE_LC 0
+#endif
+
+/* Maximum LC count we inline; larger LCs fall back to the helper. */
+#ifndef JIT_OPT_INLINE_LC_MAX
+#define JIT_OPT_INLINE_LC_MAX 4
+#endif
+
 /* Defer per-op carry-store to block exit. Each inline ADD/SUB/INC/DEC
  * currently emits `strb r2, [r4, #OFS(carry)]` (4 bytes, 1 cycle) at
  * the end of its emit. In a chain of arith ops, only the LAST carry

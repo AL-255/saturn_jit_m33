@@ -868,13 +868,40 @@ static block_step_t translate_group_0(emit_ctx_t *e, addr_t pc, addr_t *out_next
 static block_step_t translate_group_3(emit_ctx_t *e, addr_t pc, uint32_t *consumed) {
     int n = fetch_nib(pc + 1);
     int count = n + 1;
-    /* Source pointer in ROM. saturn.rom is a stable pointer for the run. */
-    const uint8_t *src = (const uint8_t *)(saturn.rom + ((pc + 2) & 0xFFFFFu));
-    emit_mov_any(e, 0, 4);                  /* r0 = &saturn */
-    emit_mov_imm32(e, 1, (uint32_t)src);    /* r1 = const src ptr */
-    emit_mov_imm32(e, 2, count);            /* r2 = count */
-    emit_bl_to(e, (const void *)jit_lc_copy);
     *consumed = 2 + count;
+
+#if JIT_OPT_INLINE_LC
+    if (count <= JIT_OPT_INLINE_LC_MAX) {
+        /* Inline: read literal nibbles at translate time, emit a
+         * compact STRB sequence indexing into saturn.reg[REG_C] via
+         * register-offset addressing. P is loaded once into r0. */
+        emit_ldrb_imm(e, 0, 4, OFS(p));
+        /* r1 = &saturn.reg[REG_C][0] */
+        emit_add_imm_t3_small(e, 1, 4, OFS_REG(REG_C));
+        for (int i = 0; i < count; i++) {
+            uint8_t lit = fetch_nib(pc + 2 + i) & 0xf;
+            emit_mov_lo_imm8(e, 2, lit);
+            /* strb r2, [r1, r0] — T1 reg-offset: 0x540A pattern */
+            emit_hw(e, 0x5400 | (0 << 6) | (1 << 3) | 2);
+            if (i + 1 < count) {
+                emit_adds_lo_lo_imm3(e, 0, 0, 1);     /* adds r0, r0, #1 */
+                /* and r0, r0, #0xf (T1 AND.W modified-imm) */
+                {
+                    uint32_t hi = 0xF000 | 0;
+                    uint32_t lo = (0 << 12) | (0 << 8) | 0x0F;
+                    emit_w32(e, (hi << 16) | lo);
+                }
+            }
+        }
+        return BLK_CONTINUE;
+    }
+#endif
+
+    const uint8_t *src = (const uint8_t *)(saturn.rom + ((pc + 2) & 0xFFFFFu));
+    emit_mov_any(e, 0, 4);
+    emit_mov_imm32(e, 1, (uint32_t)src);
+    emit_mov_imm32(e, 2, count);
+    emit_bl_to(e, (const void *)jit_lc_copy);
     return BLK_CONTINUE;
 }
 
