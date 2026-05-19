@@ -1757,6 +1757,12 @@ static block_step_t translate_group_9(emit_ctx_t *e, addr_t pc, uint32_t *consum
     if (dd == 0) { t.taken_kind = CB_TAKEN_RTN; t.taken_pc = 0; }
     else         { t.taken_kind = CB_TAKEN_STATIC; t.taken_pc = (pc + sext_nib(dd, 2) + 3) & 0xFFFFFu; }
     t.notaken_pc = (pc + 5) & 0xFFFFFu;
+#if JIT_OPT_CB_CHAIN_NOTAKEN
+    if (t.taken_kind == CB_TAKEN_STATIC) {
+        emit_compare_branch_tail_chainable(e, &t);
+        return BLK_CONTINUE;
+    }
+#endif
     emit_compare_branch_tail(e, &t);
     return BLK_END_DYN;
 }
@@ -1932,7 +1938,9 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
             }
             break;
         }
-        case 0x9: s = translate_group_9(&e, pc, &consumed); pc_after = pc; break;
+        case 0x9: s = translate_group_9(&e, pc, &consumed);
+                  pc_after = (s == BLK_CONTINUE) ? pc + consumed : pc;
+                  break;
         case 0xA: s = translate_group_a(&e, pc); pc_after = pc + 3; break;
         case 0xB: s = translate_group_b(&e, pc); pc_after = pc + 3; break;
         case 0xC: s = translate_group_c(&e, pc); pc_after = pc + 2; break;
