@@ -162,12 +162,17 @@ static void cache_patch_links_to(uint32_t pc, uintptr_t target) {
     }
 }
 
+/* body_off is in halfwords RELATIVE to the block's start. Combine with
+ * code_off (the block's halfword index in s_code_buf) so body_off in the
+ * link_meta is a single global halfword index — that's what the link
+ * patch arithmetic needs. */
 static void cache_finalize(int slot, uint16_t code_off, uint16_t code_hw,
-                           uint16_t body_off, uint32_t ops, uint32_t next_pc) {
+                           uint16_t body_off_local, uint32_t ops, uint32_t next_pc) {
+    uint16_t body_off_global = (uint16_t)(code_off + body_off_local);
     s_table[slot].code_off = code_off;
     s_table[slot].code_hw  = code_hw;
     s_table[slot].ops      = ops;
-    s_links[slot].body_off = body_off;
+    s_links[slot].body_off = body_off_global;
     s_links[slot].next_pc  = next_pc;
 
     if (next_pc != DYN_NEXT_PC) {
@@ -177,7 +182,7 @@ static void cache_finalize(int slot, uint16_t code_off, uint16_t code_hw,
                 (uintptr_t)(s_code_buf + (uint32_t)s_links[existing].body_off * 2) | 1u;
         }
     }
-    uintptr_t our_body = (uintptr_t)(s_code_buf + (uint32_t)body_off * 2) | 1u;
+    uintptr_t our_body = (uintptr_t)(s_code_buf + (uint32_t)body_off_global * 2) | 1u;
     cache_patch_links_to(s_table[slot].pc, our_body);
 }
 #endif

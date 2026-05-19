@@ -14,7 +14,8 @@
  *   2026-05-19 baseline-helpers     arith=18.7 memmix=18.5 calltree=15.3 countloop=17.9 (interp)
  *   2026-05-19 +cache-on            arith=10.6 memmix= 5.9 calltree=11.6 countloop=10.7
  *   2026-05-19 +INLINE_AZERO_COPY   arith= 6.7 memmix= 6.0 calltree=12.5 countloop=10.7
- *   2026-05-19 +INLINE_INCDEC_eebs  arith= 4.3 memmix= 5.0 calltree= 7.8 countloop= 7.0   <- last commit
+ *   2026-05-19 +INLINE_INCDEC_eebs  arith= 4.3 memmix= 5.0 calltree= 7.8 countloop= 7.0
+ *   2026-05-19 +BLOCK_LINK          arith= 1.6 memmix= 3.7 calltree= 5.5 countloop= 4.3   <- last commit
  */
 
 #ifndef JIT_CONFIG_H
@@ -48,7 +49,7 @@
  * instead of returning to the C dispatcher. Saves the dispatcher
  * round-trip on every block boundary. */
 #ifndef JIT_OPT_BLOCK_LINK
-#define JIT_OPT_BLOCK_LINK 0
+#define JIT_OPT_BLOCK_LINK 1
 #endif
 
 /* Use 4-byte LDR/STR for the first 4 nibbles of an A-field op (5
