@@ -524,6 +524,7 @@ static void emit_inline_inc_a(emit_ctx_t *e, int reg_id) {
 static void emit_inline_add_a(emit_ctx_t *e, int dst_id, int src_id) {
     uint16_t dst = OFS_REG(dst_id);
     uint16_t src = OFS_REG(src_id);
+    bool self_add = (dst_id == src_id);
     emit_mov_lo_imm8(e, 2, 0);
     /* NO early-exit: reg_add unconditionally loops all nibbles, because
      * src[i] might be nonzero at any nibble (unlike INC where we know
@@ -531,8 +532,13 @@ static void emit_inline_add_a(emit_ctx_t *e, int dst_id, int src_id) {
      * upper nibbles' src contributions unapplied. */
     for (int i = 0; i < 5; i++) {
         emit_ldrb_smart(e, 0, 4, dst + i);
-        emit_ldrb_smart(e, 1, 4, src + i);
-        emit_hw(e, 0x1800 | (1 << 6) | (0 << 3) | 0);   /* adds r0, r0, r1 */
+        if (self_add) {
+            /* A=A+A: skip the redundant second load; r0 + r0 = 2*r0. */
+            emit_hw(e, 0x1800 | (0 << 6) | (0 << 3) | 0); /* adds r0, r0, r0 */
+        } else {
+            emit_ldrb_smart(e, 1, 4, src + i);
+            emit_hw(e, 0x1800 | (1 << 6) | (0 << 3) | 0); /* adds r0, r0, r1 */
+        }
         emit_hw(e, 0x1800 | (2 << 6) | (0 << 3) | 0);   /* adds r0, r0, r2 */
 #if JIT_OPT_FLAT_CARRY
         /* sum is 0..31. carry-out = bit 4; result nibble = sum & 0xf. */
