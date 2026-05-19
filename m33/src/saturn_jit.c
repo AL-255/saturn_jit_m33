@@ -180,8 +180,28 @@ static block_step_t translate_group_f_real(emit_ctx_t *e, addr_t pc);
 static inline nibble_t fetch_nib(addr_t a) { return sat_fetch(a); }
 static inline uint32_t fetch_k(addr_t a, int k) { return sat_fetch_field(a, k); }
 
-/* Emit: r0 = <imm32 next PC> ; pop {r4, pc} */
+/* Flush hoisted r5/r6 back into saturn struct before a block exit. No-op
+ * when HOIST is off. Must run before the matching pop. */
+static void emit_flush_hoist(emit_ctx_t *e) {
+#if JIT_OPT_HOIST_BUDGET_OPS
+    emit_str_imm(e, 5, 4, OFS(budget_remaining));
+    emit_str_imm(e, 6, 4, OFS(saturn_ops));
+#else
+    (void)e;
+#endif
+}
+
+/* pop {r4, pc} = 0xBD10 when HOIST is off; pop {r4-r6, pc} = 0xBD70 when on.
+ * (reglist8 bits 4/5/6 for r4-r6; P=1 for PC.) */
+#if JIT_OPT_HOIST_BUDGET_OPS
+#  define EPILOGUE_POP_OP 0xBD70
+#else
+#  define EPILOGUE_POP_OP 0xBD10
+#endif
+
+/* Emit: flush hoisted state ; r0 = <imm32 next PC> ; pop {...} */
 static void emit_block_exit_with_pc(emit_ctx_t *e, addr_t pc) {
+    emit_flush_hoist(e);
     uint32_t pc20 = pc & 0xFFFFFu;
 #if JIT_OPT_NARROW_EXIT_MOV
     if (pc20 <= 0xff) {
@@ -192,15 +212,14 @@ static void emit_block_exit_with_pc(emit_ctx_t *e, addr_t pc) {
 #else
     emit_mov_imm32(e, 0, pc20);
 #endif
-    /* pop {r4, pc} : encoding 1011 110 P reglist8, P=1 → include PC,
-     * reglist bit 4 = r4. So 0xBC00 | 0x100 | 0x10 = 0xBD10. */
-    emit_hw(e, 0xBD10);
+    emit_hw(e, EPILOGUE_POP_OP);
 }
 
 /* Variant where the next PC is already in r0 at exit (e.g. RTN family
- * — popped from RSTK by a helper call). Emits only the pop. */
+ * — popped from RSTK by a helper call). Emits only the flush + pop. */
 static void emit_block_exit_pc_in_r0(emit_ctx_t *e) {
-    emit_hw(e, 0xBD10);     /* pop {r4, pc} */
+    emit_flush_hoist(e);
+    emit_hw(e, EPILOGUE_POP_OP);
 }
 
 /* Emit:   add r0, r4, #ofs   (pointer into saturn_t in r0)
@@ -626,6 +645,22 @@ static void emit_ops_counter_bump(emit_ctx_t *e, uint32_t n) {
     return;
 #endif
     if (n == 0) return;
+#if JIT_OPT_HOIST_BUDGET_OPS
+    /* r6 holds the running saturn_ops value. Just bump it; the block
+     * exit will flush back to saturn.saturn_ops. */
+    if (n <= 0xff) {
+        emit_adds_lo_imm8(e, 6, (uint8_t)n);
+    } else if (n <= 0xfff) {
+        emit_add_imm_t3_small(e, 6, 6, (uint16_t)n);
+    } else {
+        emit_mov_imm32(e, 0, n);
+        /* add.w r6, r6, r0 */
+        uint32_t hi = 0xEB00 | 6;
+        uint32_t lo = (0 << 12) | (6 << 8) | 0;
+        emit_w32(e, (hi << 16) | lo);
+    }
+    return;
+#endif
     emit_ldr_imm(e, 0, 4, OFS(saturn_ops));
     /* Pick the narrowest add encoding that fits. T2 ADDS Rd, #imm8 is
      * 2 bytes vs ADDW (T4) at 4 bytes; smaller code measured 11-13%
@@ -1706,9 +1741,16 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
     emit_init(&e, out_buf, out_cap);
     s_carry_dirty_r2 = false;
 
-    /* Prologue */
+    /* Prologue. With HOIST, also save r5/r6 and pre-load budget/ops. */
+#if JIT_OPT_HOIST_BUDGET_OPS
+    emit_push(&e, (1 << 4) | (1 << 5) | (1 << 6) | (1 << 14)); /* push {r4-r6, lr} */
+    emit_mov_any(&e, 4, 0);                                    /* mov r4, r0 */
+    emit_ldr_imm(&e, 5, 4, OFS(budget_remaining));             /* r5 = budget */
+    emit_ldr_imm(&e, 6, 4, OFS(saturn_ops));                   /* r6 = saturn_ops */
+#else
     emit_push(&e, (1 << 4) | (1 << 14));         /* push {r4, lr} */
     emit_mov_any(&e, 4, 0);                      /* mov r4, r0 (saturn*) */
+#endif
 
     /* body_off_hw = halfword index where body actually starts (after
      * prologue). Chained-from-another-block entries skip prologue. */
@@ -1803,6 +1845,16 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
     if (dyn_end) {
 #if !JIT_OPT_OPS_COUNTER_IN_C
         if (ops != 0) {
+#if JIT_OPT_HOIST_BUDGET_OPS
+            /* r6 = saturn_ops. r0 holds the dynamic next-PC and must
+             * survive — only touch r6. */
+            if (ops <= 0xff)      emit_adds_lo_imm8(&e, 6, (uint8_t)ops);
+            else if (ops <= 0xfff) emit_add_imm_t3_small(&e, 6, 6, (uint16_t)ops);
+            else { emit_mov_imm32(&e, 1, ops);
+                   uint32_t hi = 0xEB00 | 6;
+                   uint32_t lo = (0 << 12) | (6 << 8) | 1;
+                   emit_w32(&e, (hi << 16) | lo); }
+#else
             emit_ldr_imm(&e, 1, 4, OFS(saturn_ops));
             if (ops <= 0xfff) emit_add_imm_t3_small(&e, 1, 1, (uint16_t)ops);
             else { emit_mov_imm32(&e, 2, ops);
@@ -1810,6 +1862,7 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                    uint32_t lo = (0 << 12) | (1 << 8) | 2;
                    emit_w32(&e, (hi << 16) | lo); }
             emit_str_imm(&e, 1, 4, OFS(saturn_ops));
+#endif
         }
 #endif
         emit_block_exit_pc_in_r0(&e);
@@ -1834,6 +1887,57 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
              *   ldr  r2, [r2]
              *   bx   r2
              *   local_exit: pop {r4, pc} */
+#if JIT_OPT_HOIST_BUDGET_OPS
+            /* Hoisted bookkeeping: r5 = budget_remaining, r6 = saturn_ops.
+             * No ldr/str per chained iter, just adds/subs in registers.
+             * Local_exit flushes back to saturn struct before pop. */
+            if (ops != 0) {
+                if (ops <= 0xff) {
+                    emit_adds_lo_imm8(&e, 6, (uint8_t)ops);   /* r6 += ops */
+                } else if (ops <= 0xfff) {
+                    emit_add_imm_t3_small(&e, 6, 6, (uint16_t)ops);
+                } else {
+                    emit_mov_imm32(&e, 0, ops);
+                    uint32_t hi = 0xEB00 | 6;
+                    uint32_t lo = (0 << 12) | (6 << 8) | 0;
+                    emit_w32(&e, (hi << 16) | lo);
+                }
+            }
+            emit_mov_imm32(&e, 0, next_pc & 0xFFFFFu);
+            if (ops != 0) {
+                if (ops <= 0xff) {
+                    emit_subs_lo_imm8(&e, 5, (uint8_t)ops);   /* r5 -= ops, sets flags */
+                } else if (ops <= 0xfff) {
+                    emit_sub_imm_t3_small(&e, 5, 5, (uint16_t)ops);
+                } else {
+                    emit_mov_imm32(&e, 2, ops);
+                    /* subs.w r5, r5, r2 (T3 S=1). hi=0xEBB0|Rn=5, lo=Rd=5,Rm=2 */
+                    uint32_t hi = 0xEBB0 | 5;
+                    uint32_t lo = (0 << 12) | (5 << 8) | 2;
+                    emit_w32(&e, (hi << 16) | lo);
+                }
+                uint32_t br;
+                if (ops > 0xff && ops <= 0xfff) {
+                    emit_cmp_imm_t2(&e, 5, 0);
+                }
+                br = emit_b_w_placeholder(&e, 0xB);           /* blt local_exit */
+                /* chain: load patchable link_target word and branch */
+                emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
+                emit_ldr_imm(&e, 2, 2, 0);
+                emit_bx(&e, 2);
+                uint32_t local_exit_pos = e.pos;
+                emit_patch_b_w(&e, br, local_exit_pos);
+            } else {
+                /* No ops, always chain (block was an empty no-op). */
+                emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
+                emit_ldr_imm(&e, 2, 2, 0);
+                emit_bx(&e, 2);
+            }
+            /* local_exit: flush r5/r6, then pop {r4-r6, pc}. */
+            emit_str_imm(&e, 5, 4, OFS(budget_remaining));
+            emit_str_imm(&e, 6, 4, OFS(saturn_ops));
+            emit_hw(&e, EPILOGUE_POP_OP);
+#else
             if (ops != 0) {
                 emit_ldr_imm(&e, 0, 4, OFS(saturn_ops));
                 if (ops <= 0xff)      emit_adds_lo_imm8(&e, 0, (uint8_t)ops);
@@ -1846,9 +1950,6 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
             }
             emit_mov_imm32(&e, 0, next_pc & 0xFFFFFu);
             if (ops != 0) {
-                /* Load → SUBS (sets flags) → STR → BLT. SUBS is the narrow
-                 * T1 form (2 bytes) and sets N/Z so we don't need a CMP
-                 * before BLT. STR doesn't clobber flags. */
                 emit_ldr_imm(&e, 1, 4, OFS(budget_remaining));
                 if (ops <= 0xff) {
                     emit_subs_lo_imm8(&e, 1, (uint8_t)ops);
@@ -1856,7 +1957,6 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                     emit_sub_imm_t3_small(&e, 1, 1, (uint16_t)ops);
                 } else {
                     emit_mov_imm32(&e, 2, ops);
-                    /* subs.w r1, r1, r2 (T3 S=1). hi=0xEBB0|Rn=1, lo=Rd=1, Rm=2 */
                     uint32_t hi = 0xEBB0 | 1;
                     uint32_t lo = (0 << 12) | (1 << 8) | 2;
                     emit_w32(&e, (hi << 16) | lo);
@@ -1864,27 +1964,23 @@ jit_block_fn_t saturn_jit_translate_linked(addr_t start_pc,
                 emit_str_imm(&e, 1, 4, OFS(budget_remaining));
             }
             if (ops != 0) {
-                /* For ops in [1, 0xff] SUBS already set the right flags.
-                 * For larger ops via SUBW (T4) flags aren't set — fall
-                 * back to a CMP. The hot path (ops ≤ 0xff) skips it. */
                 uint32_t br;
                 if (ops > 0xff && ops <= 0xfff) {
                     emit_cmp_imm_t2(&e, 1, 0);
                 }
-                br = emit_b_w_placeholder(&e, 0xB);    /* cond LT */
-                /* chain */
+                br = emit_b_w_placeholder(&e, 0xB);
                 emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
                 emit_ldr_imm(&e, 2, 2, 0);
                 emit_bx(&e, 2);
                 uint32_t local_exit_pos = e.pos;
                 emit_patch_b_w(&e, br, local_exit_pos);
             } else {
-                /* No ops, always chain. */
                 emit_mov_imm32(&e, 2, (uint32_t)(uintptr_t)link_target);
                 emit_ldr_imm(&e, 2, 2, 0);
                 emit_bx(&e, 2);
             }
-            emit_hw(&e, 0xBD10);     /* pop {r4, pc} : local_exit */
+            emit_hw(&e, EPILOGUE_POP_OP);
+#endif
         } else {
             emit_ops_counter_bump(&e, ops);
             emit_block_exit_with_pc(&e, next_pc);

@@ -27,6 +27,16 @@
 #include <stddef.h>
 #include <string.h>
 
+/* Offsets used by the inline-asm stub. offsetof would work but the inline
+ * asm template needs literal constants for the LDR/STR immediate, so we
+ * pin the numeric values here and statically assert they match. */
+#define SATURN_OFS_OPS    248
+#define SATURN_OFS_BUDGET 272
+_Static_assert(offsetof(saturn_t, saturn_ops)       == SATURN_OFS_OPS,
+               "stub OFS(saturn_ops) drifted");
+_Static_assert(offsetof(saturn_t, budget_remaining) == SATURN_OFS_BUDGET,
+               "stub OFS(budget_remaining) drifted");
+
 extern uint8_t _jit_cache_start[];
 extern uint8_t _jit_cache_end[];
 
@@ -67,13 +77,29 @@ static jit_stats_t   s_stats;
  * (pushed by the C-dispatcher-entered block) and returns to the
  * C dispatcher with r0 holding the next Saturn PC.
  *
+ * With JIT_OPT_HOIST_BUDGET_OPS the prologue pushes r4-r6/lr and
+ * holds budget in r5, saturn_ops in r6. The stub must flush both to
+ * the saturn struct and pop the matching reglist. Without HOIST the
+ * prologue is just push {r4, lr}, so a plain pop {r4, pc} suffices.
+ *
  * Naked + .thumb_func so GCC emits no prologue and the symbol is
  * tagged as Thumb. The address we put into link_target has the LSB
  * set so BX enters Thumb mode. */
+#define STUB_STRINGIFY1(x) #x
+#define STUB_STRINGIFY(x)  STUB_STRINGIFY1(x)
+
 __attribute__((naked, used))
 void jit_dispatcher_return_stub(void) {
+#if JIT_OPT_HOIST_BUDGET_OPS
+    __asm__ volatile (
+        ".thumb_func\n"
+        "str.w r5, [r4, #" STUB_STRINGIFY(SATURN_OFS_BUDGET) "]\n"
+        "str.w r6, [r4, #" STUB_STRINGIFY(SATURN_OFS_OPS)    "]\n"
+        "pop  {r4, r5, r6, pc}\n");
+#else
     __asm__ volatile (".thumb_func\n"
-                     "pop {r4, pc}\n");
+                      "pop {r4, pc}\n");
+#endif
 }
 
 #if JIT_OPT_BLOCK_LINK

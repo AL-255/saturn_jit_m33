@@ -198,4 +198,20 @@
 #define JIT_OPT_NARROW_INCDEC 1
 #endif
 
+/* Hoist saturn.budget_remaining and saturn.saturn_ops into callee-saved
+ * registers (r5/r6) for the lifetime of a JIT block. Without this, the
+ * linked-tail loop loads/stores both fields on every chained iteration.
+ *
+ * Default OFF: helps the chain-heavy workloads (arith -2%, memmix -1%,
+ * countloop -4%) but regresses calltree +28% under QEMU because every
+ * RTN dyn-ends back to the dispatcher, paying the bigger prologue cost
+ * without amortizing it across a chain. The net is -9% overall.
+ *
+ * Likely a QEMU-TCG artifact: real M33 hardware should benefit more from
+ * the chain savings (eliminating store-buffer round-trips) than it pays
+ * for the prologue's extra ldr/str. Revisit on hardware. */
+#ifndef JIT_OPT_HOIST_BUDGET_OPS
+#define JIT_OPT_HOIST_BUDGET_OPS 0
+#endif
+
 #endif
