@@ -82,6 +82,11 @@ typedef struct saturn_state_s {
     uint8_t       *ram;
     uint32_t       ram_base;  /* Saturn address of ram[0] */
     uint32_t       ram_size;  /* in nibbles */
+    /* Derived fields for the INLINE_DAT W bounds check fast path.
+     * Caller (jit_run / reset_for_workload) must keep these consistent
+     * with ram/ram_base/ram_size. */
+    uint32_t       ram_dat_bound;        /* ram_base + ram_size - 4 */
+    uintptr_t      ram_minus_ram_base;   /* (uintptr_t)ram - ram_base */
 
     /* Bench counters - filled by interpreter & JIT, read by main. */
     uint64_t       saturn_ops;

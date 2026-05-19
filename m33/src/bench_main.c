@@ -57,6 +57,8 @@ static void reset_for_workload(const workload_t *wl) {
     saturn.ram      = g_ram_buf;
     saturn.ram_base = 0x80000;
     saturn.ram_size = sizeof g_ram_buf;
+    saturn.ram_dat_bound      = saturn.ram_base + saturn.ram_size - 4;
+    saturn.ram_minus_ram_base = (uintptr_t)saturn.ram - saturn.ram_base;
     saturn.pc       = wl->entry_pc;
 }
 
@@ -106,7 +108,7 @@ static int crosscheck(const workload_t *wl, mode_t jit_mode) {
 
     reset_for_workload(wl);
     run_mode(jit_mode, 20000);
-    uint64_t jit_ops = saturn.saturn_ops;
+    uint64_t jit_ops = (uint64_t)saturn.saturn_ops;
     snap_jit = saturn;
 
     reset_for_workload(wl);
@@ -140,9 +142,9 @@ static void run_one(const workload_t *wl, mode_t m, uint64_t budget) {
     p = strapp(p, "RESULT,");
     p = strapp(p, wl->name);   p = strapp(p, ",");
     p = strapp(p, mode_name(m));
-    p = strapp(p, ",ops=");          p = u64_dec(p, saturn.saturn_ops);
+    p = strapp(p, ",ops=");          p = u64_dec(p, (uint64_t)saturn.saturn_ops);
     p = strapp(p, ",ticks=");        p = u64_dec(p, e1 - e0);
-    p = strapp(p, ",br_taken=");     p = u64_dec(p, saturn.saturn_branches_taken);
+    p = strapp(p, ",br_taken=");     p = u64_dec(p, (uint64_t)saturn.saturn_branches_taken);
     p = strapp(p, ",status=");       p = u32_dec(p, st);
     p = strapp(p, ",final_pc=");     p = u32_hex(p, saturn.pc);
     if (m != MODE_INTERP) {

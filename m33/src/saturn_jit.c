@@ -1106,23 +1106,21 @@ static block_step_t translate_group_1(emit_ctx_t *e, addr_t pc, uint32_t *consum
 
 #if JIT_OPT_INLINE_DAT
         if (is_W) {
-            /* Inline 5-nibble DAT W with bounds check.
-             *   ldr  r0, [r4, #ofs_d]
-             *   ldr  r1, [r4, #ofs_ram]
-             *   ldr  r2, [r4, #ofs_ram_base]
-             *   sub.w r2, r0, r2          ; r2 = offset = d - ram_base
-             *   ldr  r3, [r4, #ofs_ram_size]
-             *   cmp  r2, r3
-             *   bhs  fallback             ; out of bounds → helper
-             *   add.w r2, r2, r1          ; r2 = &ram[off]
-             *   ; transfer
-             *   b end
-             * fallback:
-             *   ; emit standard helper call (store: load d into r0 again)
-             *   ...
-             * end:
-             */
-            emit_load_d(e, 0, d_idx);
+            /* Inline 5-nibble DAT W with bounds check. */
+            emit_load_d(e, 0, d_idx);                       /* r0 = d */
+#if JIT_OPT_PRECOMPUTE_RAM_BOUND
+            /* Bounds: d <= ram_dat_bound (= ram_base + ram_size - 4).
+             * Address: &ram[d - ram_base] = ram_minus_ram_base + d. */
+            emit_ldr_imm(e, 1, 4, OFS(ram_dat_bound));      /* r1 = bound */
+            emit_hw(e, 0x4280 | (1 << 3) | 0);             /* cmp r0, r1 (T1) */
+            uint32_t br_fallback = emit_b_w_placeholder(e, 0x8); /* HI: r0 > r1 */
+            emit_ldr_imm(e, 2, 4, OFS(ram_minus_ram_base)); /* r2 = ram - ram_base */
+            {
+                uint32_t hi = 0xEB00 | 2;
+                uint32_t lo = (0 << 12) | (2 << 8) | (0 << 6) | (0 << 4) | 0;
+                emit_w32(e, (hi << 16) | lo);               /* add.w r2, r2, r0 */
+            }
+#else
             emit_ldr_imm(e, 1, 4, OFS(ram));
             emit_ldr_imm(e, 2, 4, OFS(ram_base));
             {
@@ -1131,19 +1129,15 @@ static block_step_t translate_group_1(emit_ctx_t *e, addr_t pc, uint32_t *consum
                 emit_w32(e, (hi << 16) | lo);     /* sub.w r2, r0, r2 */
             }
             emit_ldr_imm(e, 3, 4, OFS(ram_size));
-            /* The 5-nibble write spans offset..offset+4. To stay in
-             * bounds, offset+5 must be ≤ ram_size, i.e. offset must
-             * be < ram_size - 4. Subtract 4 from r3 (ram_size) so the
-             * CMP+BHS check becomes "branch if offset >= ram_size-4". */
             emit_subs_lo_imm8(e, 3, 4);                      /* subs r3, r3, #4 */
             emit_hw(e, 0x4200 | (1 << 7) | (3 << 3) | 2);  /* cmp r2, r3 T1 */
             uint32_t br_fallback = emit_b_w_placeholder(e, 0x2);   /* cond HS = 0x2 */
-            /* Fast path */
             {
                 uint32_t hi = 0xEB00 | 2;
                 uint32_t lo = (0 << 12) | (2 << 8) | (0 << 6) | (0 << 4) | 1;
                 emit_w32(e, (hi << 16) | lo);     /* add.w r2, r2, r1 */
             }
+#endif
             uint16_t reg_off = OFS_REG(reg_idx);
             if (is_store) {
                 emit_ldr_imm(e, 0, 4, reg_off);

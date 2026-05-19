@@ -305,4 +305,20 @@
 #define JIT_OPT_SKIP_BRANCH_COUNTERS 0
 #endif
 
+/* Precompute saturn.ram_dat_bound (= ram_base + ram_size - 4) and
+ * saturn.ram_minus_ram_base (= (uintptr_t)ram - ram_base) at workload
+ * setup. INLINE_DAT then needs only 2 ldrs + cmp + add (4 instrs)
+ * for the bounds check vs the original 4 ldrs + subs + cmp + add (7).
+ *
+ * Default OFF: under QEMU TCG memmix regresses ~10% despite the
+ * shorter emit (782 → 742 bytes). Same artifact as other memmix-
+ * regression-on-layout-change attempts; the inline-DAT block is
+ * sensitive to TCG's instruction-cache layout in a way I haven't
+ * managed to disentangle. The optimization should be uniformly
+ * positive on real M33 hardware where the emit size shrinking
+ * matters and TCG isn't in the picture. */
+#ifndef JIT_OPT_PRECOMPUTE_RAM_BOUND
+#define JIT_OPT_PRECOMPUTE_RAM_BOUND 0
+#endif
+
 #endif

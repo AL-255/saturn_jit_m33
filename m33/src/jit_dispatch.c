@@ -30,8 +30,8 @@
 /* Offsets used by the inline-asm stub. offsetof would work but the inline
  * asm template needs literal constants for the LDR/STR immediate, so we
  * pin the numeric values here and statically assert they match. */
-#define SATURN_OFS_OPS    248
-#define SATURN_OFS_BUDGET 272
+#define SATURN_OFS_OPS    256
+#define SATURN_OFS_BUDGET 280
 _Static_assert(offsetof(saturn_t, saturn_ops)       == SATURN_OFS_OPS,
                "stub OFS(saturn_ops) drifted");
 _Static_assert(offsetof(saturn_t, budget_remaining) == SATURN_OFS_BUDGET,
