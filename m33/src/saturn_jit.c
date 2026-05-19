@@ -1232,12 +1232,13 @@ static block_step_t translate_group_1(emit_ctx_t *e, addr_t pc, uint32_t *consum
         emit_load_d(e, 0, d_idx);
         if (sub) emit_sub_imm_t3_small(e, 0, 0, amt);
         else     emit_add_imm_t3_small(e, 0, 0, amt);
-        /* Mask to 20 bits via movw r1,#0xFFFF; movt r1,#0xF; AND. We
-         * tried UBFX r0, r0, #0, #20 (one 4-byte insn) and it ran ~25%
-         * slower under QEMU TCG across all four workloads despite being
-         * 8 bytes smaller — TCG's UBFX backend handler is apparently
-         * heavier than the immediate AND it replaces. Real M33 hardware
-         * should prefer UBFX; revisit there. */
+        /* Mask to 20 bits. We tried:
+         *   - UBFX r0, r0, #0, #20 (4 bytes) — 25% slower under QEMU.
+         *   - LSLS r0, r0, #12 ; LSRS r0, r0, #12 (4 bytes) — memmix
+         *     +38% under QEMU.
+         * Both are clear wins on hardware but trigger memmix's TCG
+         * layout sensitivity. Stuck with the original 12-byte sequence
+         * for stable QEMU benchmarks. */
         emit_movw(e, 1, 0xFFFF);
         emit_movt(e, 1, 0x000F);
         emit_and_reg(e, 0, 0, 1);
