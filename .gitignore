@@ -1,0 +1,9 @@
+# overclock + variant build dirs (CMake artefacts, never committed)
+boards/adafruit_6130/build_oc/
+boards/adafruit_6130/build_oc_*/
+
+# CMake build output (x50ng host build)
+x50ng_build/
+
+# macOS metadata
+.DS_Store
