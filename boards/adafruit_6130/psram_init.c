@@ -1,255 +1,232 @@
-/* PSRAM bring-up for the Adafruit Feather RP2350 (HSTX, 8 MB PSRAM).
+/* PSRAM (APS6404L) bring-up for the Adafruit Feather RP2350 P/N 6130.
  *
- * SDK 2.2.0 does not include a stock PSRAM init for this board (the
- * Adafruit board file `adafruit_feather_rp2350.h` doesn't declare
- * PICO_RP2350_PSRAM_*) so we drive the QMI directly:
+ * Closely modelled on CircuitPython's setup_psram() in
+ * ports/raspberrypi/supervisor/port.c — that is the reference that
+ * is known to work for this exact board and chip. Adafruit don't
+ * ship a stock Pico SDK helper for the QMI-attached APS6404L on
+ * this board, so we drive it ourselves:
  *
- *   1. Mux PSRAM CS pin (GPIO PSRAM_CS_PIN, default 8) to QMI_CS1.
- *   2. Take over QMI in direct mode (DIRECT_CSR.EN = 1).
- *   3. Send the APS6404 reset sequence (0x66 then 0x99) over CS1.
- *   4. Send "Enter QPI mode" (0x35).
- *   5. Configure QMI M1 (CS1 / address window @ 0x11000000) for
- *      QPI Fast-Read (0xEB, 24-bit addr, 6 dummy cycles) and
- *      Quad-Write (0x38).
- *   6. Drop direct mode — PSRAM is now memory-mapped.
- *   7. Verify by writing a pattern through the mapped window and
- *      reading it back.
+ *   1. Mux PSRAM CS (GPIO8 on the 6130) to GPIO_FUNC_XIP_CS1.
+ *   2. Enable QMI direct mode at a slow clk (clkdiv=30).
+ *   3. Send 0xF5 as quad to exit QPI in case a prior failed boot
+ *      left the part in QPI mode (otherwise the JEDEC read below
+ *      gets garbage).
+ *   4. Read JEDEC ID via 0x9F + 6 dummy bytes; abort if the KGD
+ *      byte at index 5 isn't 0x5D (APS6404 magic). Bytes give us
+ *      the die size at the EID byte (index 6).
+ *   5. Issue RSTEN (0x66), RST (0x99), ENTER_QPI (0x35) — each in
+ *      its own CS cycle.
+ *   6. Configure QMI window 1 (M[1]) timing + read (0xEB QPI fast
+ *      read, 24 dummy cycles) + write (0x38 QPI write) — the values
+ *      below are copied verbatim from CircuitPython.
+ *   7. Set XIP_CTRL.WRITABLE_M1 so XIP controller doesn't drop
+ *      writes to the M1 window.
+ *   8. Smoke-test through the no-cache alias at 0x15000000.
  *
- * The clock divider is conservative (clkdiv=4 → 37.5 MHz QSPI at the
- * default 150 MHz sys clock; APS6404L supports up to 144 MHz in QPI).
- * Bumping the rate is a "make it faster later" item — first we want
- * correct.
+ * After this returns successfully, PSRAM is memory-mapped at
+ * 0x11000000 (cached) and 0x15000000 (uncached). JIT code reads
+ * the cached window; the uncached alias is just for the verify
+ * step (avoids stale XIP cache giving false positives).
+ *
+ * Everything from step 2 onward MUST live in SRAM — direct-mode
+ * QMI breaks XIP fetches from flash for the duration. The
+ * .time_critical.* section is copied to SRAM by the SDK runtime.
  */
 
 #include <stdint.h>
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "pico/stdio_usb.h"
+#include "hardware/clocks.h"
 #include "hardware/gpio.h"
 #include "hardware/structs/qmi.h"
 #include "hardware/structs/xip_ctrl.h"
 #include "hardware/regs/qmi.h"
+#include "hardware/regs/xip.h"
 #include "hardware/sync.h"
-#include "pico/runtime_init.h"
-
-/* The QMI direct-mode setup REQUIRES that the CPU not fetch instructions
- * from flash (XIP through QMI CS0) while QMI is being reprogrammed —
- * otherwise the very next fetch stalls and the chip wedges. Force the
- * critical function and its inline helpers to live in SRAM via the
- * standard Pico SDK section. */
-#define IN_SRAM __attribute__((section(".time_critical.psram_init")))
 
 #ifndef PSRAM_CS_PIN
-#define PSRAM_CS_PIN 8        /* Adafruit Feather RP2350 6130 default */
+#define PSRAM_CS_PIN 8
 #endif
 
-#ifndef PSRAM_USE_QPI
-#define PSRAM_USE_QPI 0       /* start in SPI for first-contact debugging */
-#endif
+#define PSRAM_BASE_CACHED   ((volatile uint32_t *)0x11000000u)
+#define PSRAM_BASE_NOCACHE  ((volatile uint32_t *)0x15000000u)
 
-#define PSRAM_BASE              ((volatile uint32_t *)0x11000000u)
-#define PSRAM_TEST_NWORDS       1024
+/* Filled in by psram_init() so the bench can size its JIT cache. */
+static uint32_t s_psram_bytes = 0;
 
-/* APS6404L QPI/SPI command bytes. */
-#define APS6404_CMD_RESET_EN    0x66
-#define APS6404_CMD_RESET       0x99
-#define APS6404_CMD_ENTER_QPI   0x35
-#define APS6404_CMD_FAST_READ_Q 0xEB    /* QPI fast read, 6 dummy */
-#define APS6404_CMD_QUAD_WRITE  0x38    /* QPI write */
+uint32_t psram_get_size_bytes(void) { return s_psram_bytes; }
 
-/* --- direct-mode helpers ------------------------------------------ */
+static uint32_t __no_inline_not_in_flash_func(psram_init_inner)(uint8_t *kgd_out, uint8_t *eid_out) {
+    *kgd_out = 0;
+    *eid_out = 0;
 
-/* Returns 0 on success, -1 on timeout — `count` is approximate
- * busy-loop iterations; even at clk_sys=150 MHz a single QMI byte
- * completes in well under 256 iterations, so 10000 is generous. */
-IN_SRAM static int qmi_wait_clear(uint32_t mask) {
-    for (int i = 0; i < 10000; i++) {
-        if (!(qmi_hw->direct_csr & mask)) return 0;
-        tight_loop_contents();
-    }
-    return -1;
-}
-IN_SRAM static int qmi_wait_set(uint32_t mask) {
-    for (int i = 0; i < 10000; i++) {
-        if (qmi_hw->direct_csr & mask) return 0;
-        tight_loop_contents();
-    }
-    return -1;
-}
+    /* (1) Mux CS pin. */
+    gpio_set_function(PSRAM_CS_PIN, GPIO_FUNC_XIP_CS1);
 
-/* No printf in here — flash is unreachable while DIRECT_CSR.EN=1.
- * `iwidth` is 0=Single (SPI) or 2=Quad (QPI). */
-IN_SRAM static int qmi_direct_send_byte_cs1_w(uint8_t b, int iwidth) {
+    /* (2) Enable QMI direct mode at a slow clock (sys / 30 ≈ 5 MHz at
+     *     150 MHz sys, ~11 MHz at 336 MHz sys). */
+    qmi_hw->direct_csr = (30u << QMI_DIRECT_CSR_CLKDIV_LSB)
+                       | QMI_DIRECT_CSR_EN_BITS;
+    while (qmi_hw->direct_csr & QMI_DIRECT_CSR_BUSY_BITS) { }
+
+    /* (3) Send 0xF5 (exit QPI) as a quad-width byte so it works
+     *     whether the part is currently in QPI or SPI mode. */
     qmi_hw->direct_csr |= QMI_DIRECT_CSR_ASSERT_CS1N_BITS;
-    qmi_hw->direct_tx  = (uint32_t)b | (uint32_t)((iwidth & 3) << 16);
-    if (qmi_wait_set(QMI_DIRECT_CSR_TXEMPTY_BITS))     return -1;
-    if (qmi_wait_clear(QMI_DIRECT_CSR_BUSY_BITS))      return -2;
+    qmi_hw->direct_tx = QMI_DIRECT_TX_OE_BITS
+                      | (QMI_DIRECT_TX_IWIDTH_VALUE_Q << QMI_DIRECT_TX_IWIDTH_LSB)
+                      | 0xf5u;
+    while (qmi_hw->direct_csr & QMI_DIRECT_CSR_BUSY_BITS) { }
+    (void)qmi_hw->direct_rx;
     qmi_hw->direct_csr &= ~QMI_DIRECT_CSR_ASSERT_CS1N_BITS;
-    while (!(qmi_hw->direct_csr & QMI_DIRECT_CSR_RXEMPTY_BITS)) {
+
+    /* (4) JEDEC read: 0x9F prefix + 6 dummy bytes. APS6404L returns
+     *     a fixed manufacturer/KGD byte (0x5D) at index 5 and the
+     *     EID at index 6, which encodes die size. */
+    qmi_hw->direct_csr |= QMI_DIRECT_CSR_ASSERT_CS1N_BITS;
+    uint8_t kgd = 0, eid = 0;
+    for (int i = 0; i < 7; i++) {
+        qmi_hw->direct_tx = (i == 0) ? 0x9fu : 0xffu;
+        while ((qmi_hw->direct_csr & QMI_DIRECT_CSR_TXEMPTY_BITS) == 0) { }
+        while ( qmi_hw->direct_csr & QMI_DIRECT_CSR_BUSY_BITS) { }
+        uint8_t b = (uint8_t)qmi_hw->direct_rx;
+        if (i == 5) kgd = b;
+        else if (i == 6) eid = b;
+    }
+    qmi_hw->direct_csr &= ~(QMI_DIRECT_CSR_ASSERT_CS1N_BITS | QMI_DIRECT_CSR_EN_BITS);
+
+    *kgd_out = kgd;
+    *eid_out = eid;
+    if (kgd != 0x5D) {
+        return 0;
+    }
+
+    /* (5) RSTEN, RST, ENTER_QPI — each as its own CS cycle. */
+    qmi_hw->direct_csr = (30u << QMI_DIRECT_CSR_CLKDIV_LSB)
+                       | QMI_DIRECT_CSR_EN_BITS;
+    while (qmi_hw->direct_csr & QMI_DIRECT_CSR_BUSY_BITS) { }
+
+    /* RSTEN, RST, ENTER_QPI in three separate CS cycles.
+     * Don't use a const array here — it would live in .rodata (flash),
+     * and a flash-XIP fetch with direct mode active would lock up. */
+    for (int i = 0; i < 3; i++) {
+        uint32_t cmd = (i == 0) ? 0x66u : (i == 1) ? 0x99u : 0x35u;
+        qmi_hw->direct_csr |= QMI_DIRECT_CSR_ASSERT_CS1N_BITS;
+        qmi_hw->direct_tx = cmd;
+        while (qmi_hw->direct_csr & QMI_DIRECT_CSR_BUSY_BITS) { }
+        qmi_hw->direct_csr &= ~QMI_DIRECT_CSR_ASSERT_CS1N_BITS;
+        for (int j = 0; j < 20; j++) __asm__ volatile("nop");
         (void)qmi_hw->direct_rx;
     }
-    return 0;
-}
-IN_SRAM static int qmi_direct_send_byte_cs1(uint8_t b) {
-    return qmi_direct_send_byte_cs1_w(b, 0);
-}
+    qmi_hw->direct_csr &= ~(QMI_DIRECT_CSR_ASSERT_CS1N_BITS | QMI_DIRECT_CSR_EN_BITS);
 
-/* --- public API --------------------------------------------------- */
-
-/* Bail out cleanly without ever stalling on the bus. If anything looks
- * off — direct-mode hung from a previous boot, GPIO function still wrong,
- * etc. — we abort with a printf so the bench can keep running with the
- * SRAM cache (the PSRAM build degrades gracefully into "JIT cache lives
- * at a never-used address" but at least USB stays alive). */
-IN_SRAM void psram_init(void) {
-    /* `sh_init_runtime` already ran stdio_init_all + DWT setup. Make
-     * sure prints are visible before we touch QMI. */
-    for (int i = 0; i < 20 && !stdio_usb_connected(); i++) busy_wait_ms(50);
-    printf("psram init: CS pin GPIO%u, base 0x11000000\n", PSRAM_CS_PIN);
-    fflush(stdout);
-    busy_wait_ms(20);  /* let the line drain */
-
-    /* 1. Mux the PSRAM CS pin to QMI's CS1 function. */
-    gpio_set_function(PSRAM_CS_PIN, GPIO_FUNC_XIP_CS1);
-    printf("psram: GPIO%u set to XIP_CS1 (func 9)\n", PSRAM_CS_PIN);
-    fflush(stdout);
-
-    /* 2. Take over QMI in direct mode at a conservative ~37 MHz
-     *    (clkdiv=4 against the 150 MHz sys clock). IRQs off + no
-     *    printf while DIRECT_CSR.EN=1 because flash XIP through CS0
-     *    is broken in that window — the printf code lives in flash. */
-    uint32_t saved_csr = qmi_hw->direct_csr;
-    printf("psram: pre-init direct_csr=0x%08lx\n", (unsigned long)saved_csr);
-    fflush(stdout);
-
-    uint32_t irq_state = save_and_disable_interrupts();
-    int rc_busy_pre = 0, rc_resetA = 0, rc_resetB = 0, rc_qpi = 0;
-
-    qmi_hw->direct_csr =
-        QMI_DIRECT_CSR_EN_BITS |
-        (30u << QMI_DIRECT_CSR_CLKDIV_LSB);
-    if (qmi_wait_clear(QMI_DIRECT_CSR_BUSY_BITS)) {
-        rc_busy_pre = -1;
-        goto release_direct_mode;
-    }
-
-    /* 3. The PSRAM may be left in QPI mode by a previous failed boot
-     *    where we couldn't power-cycle. Send the reset sequence FIRST
-     *    in QPI (4-bit) and THEN in SPI (1-bit) so we hit it
-     *    regardless of which mode it's currently in. The APS6404
-     *    accepts reset commands in either mode and returns to SPI. */
-    (void)qmi_direct_send_byte_cs1_w(APS6404_CMD_RESET_EN, 2);
-    (void)qmi_direct_send_byte_cs1_w(APS6404_CMD_RESET,    2);
-    for (volatile int i = 0; i < 4000; i++) { __asm__ volatile("nop"); }
-    rc_resetA = qmi_direct_send_byte_cs1(APS6404_CMD_RESET_EN);
-    rc_resetB = qmi_direct_send_byte_cs1(APS6404_CMD_RESET);
-    for (volatile int i = 0; i < 10000; i++) { __asm__ volatile("nop"); }
-    if (rc_resetA || rc_resetB) goto release_direct_mode;
-
-#if PSRAM_USE_QPI
-    /* 4. Enter QPI mode. */
-    rc_qpi = qmi_direct_send_byte_cs1(APS6404_CMD_ENTER_QPI);
-    if (rc_qpi) goto release_direct_mode;
-#else
-    rc_qpi = 0;  /* staying in SPI mode for first contact */
-#endif
-
-    /* 5. Configure QMI window 1 for QPI XIP read/write. The
-     *    DUMMY_LEN value is in units of 4 bits; APS6404L wants 6
-     *    dummy cycles for 0xEB so the field is 6/2 = 3 (per RP2350
-     *    DUMMY_LEN encoding: 0=0, 1=4, ... — see datasheet table). */
+    /* (6) Configure M[1] for QPI XIP. Timing values are
+     * CircuitPython's; CLKDIV is computed from clk_sys to keep
+     * the PSRAM QSPI clock at ≤ ~110 MHz (APS6404L data brief:
+     * 144 MHz QPI fast read, 84 MHz standard). At the stock
+     * 150 MHz sys, clkdiv=2 gives 75 MHz — well inside spec.
+     * At a 336 MHz OC sys, clkdiv=2 would be 168 MHz which
+     * corrupts writes, so step up to clkdiv=4 (84 MHz). */
+    uint32_t sys_hz = clock_get_hz(clk_sys);
+    uint32_t psram_clkdiv = 2;
+    while (sys_hz / psram_clkdiv > 110u * 1000u * 1000u) psram_clkdiv++;
     qmi_hw->m[1].timing =
-        (1u << QMI_M1_TIMING_COOLDOWN_LSB) |  /* 1-cycle CS cooldown */
-        (2u << QMI_M1_TIMING_RXDELAY_LSB)  |  /* 2 half-cycles sample delay */
-        (10u << QMI_M1_TIMING_CLKDIV_LSB);    /* 15 MHz — conservative for first contact */
-
-#if PSRAM_USE_QPI
+        (QMI_M1_TIMING_PAGEBREAK_VALUE_1024 << QMI_M1_TIMING_PAGEBREAK_LSB)
+      | (3u  << QMI_M1_TIMING_SELECT_HOLD_LSB)
+      | (1u  << QMI_M1_TIMING_COOLDOWN_LSB)
+      | (1u  << QMI_M1_TIMING_RXDELAY_LSB)
+      | (16u << QMI_M1_TIMING_MAX_SELECT_LSB)
+      | (7u  << QMI_M1_TIMING_MIN_DESELECT_LSB)
+      | (psram_clkdiv << QMI_M1_TIMING_CLKDIV_LSB);
     qmi_hw->m[1].rfmt =
-        (QMI_M1_RFMT_PREFIX_WIDTH_VALUE_Q  << QMI_M1_RFMT_PREFIX_WIDTH_LSB)  |
-        (QMI_M1_RFMT_ADDR_WIDTH_VALUE_Q    << QMI_M1_RFMT_ADDR_WIDTH_LSB)    |
-        (QMI_M1_RFMT_SUFFIX_WIDTH_VALUE_Q  << QMI_M1_RFMT_SUFFIX_WIDTH_LSB)  |
-        (QMI_M1_RFMT_DUMMY_WIDTH_VALUE_Q   << QMI_M1_RFMT_DUMMY_WIDTH_LSB)   |
-        (QMI_M1_RFMT_DATA_WIDTH_VALUE_Q    << QMI_M1_RFMT_DATA_WIDTH_LSB)    |
-        (QMI_M1_RFMT_PREFIX_LEN_VALUE_8    << QMI_M1_RFMT_PREFIX_LEN_LSB)    |
-        (6u                                 << QMI_M1_RFMT_DUMMY_LEN_LSB);
-    qmi_hw->m[1].rcmd = (uint32_t)APS6404_CMD_FAST_READ_Q;
+        (QMI_M1_RFMT_PREFIX_WIDTH_VALUE_Q  << QMI_M1_RFMT_PREFIX_WIDTH_LSB)
+      | (QMI_M1_RFMT_ADDR_WIDTH_VALUE_Q    << QMI_M1_RFMT_ADDR_WIDTH_LSB)
+      | (QMI_M1_RFMT_SUFFIX_WIDTH_VALUE_Q  << QMI_M1_RFMT_SUFFIX_WIDTH_LSB)
+      | (QMI_M1_RFMT_DUMMY_WIDTH_VALUE_Q   << QMI_M1_RFMT_DUMMY_WIDTH_LSB)
+      | (QMI_M1_RFMT_DUMMY_LEN_VALUE_24    << QMI_M1_RFMT_DUMMY_LEN_LSB)
+      | (QMI_M1_RFMT_DATA_WIDTH_VALUE_Q    << QMI_M1_RFMT_DATA_WIDTH_LSB)
+      | (QMI_M1_RFMT_PREFIX_LEN_VALUE_8    << QMI_M1_RFMT_PREFIX_LEN_LSB)
+      | (QMI_M1_RFMT_SUFFIX_LEN_VALUE_NONE << QMI_M1_RFMT_SUFFIX_LEN_LSB);
+    qmi_hw->m[1].rcmd = 0xebu << QMI_M1_RCMD_PREFIX_LSB;
 
     qmi_hw->m[1].wfmt =
-        (QMI_M1_WFMT_PREFIX_WIDTH_VALUE_Q  << QMI_M1_WFMT_PREFIX_WIDTH_LSB)  |
-        (QMI_M1_WFMT_ADDR_WIDTH_VALUE_Q    << QMI_M1_WFMT_ADDR_WIDTH_LSB)    |
-        (QMI_M1_WFMT_SUFFIX_WIDTH_VALUE_Q  << QMI_M1_WFMT_SUFFIX_WIDTH_LSB)  |
-        (QMI_M1_WFMT_DUMMY_WIDTH_VALUE_Q   << QMI_M1_WFMT_DUMMY_WIDTH_LSB)   |
-        (QMI_M1_WFMT_DATA_WIDTH_VALUE_Q    << QMI_M1_WFMT_DATA_WIDTH_LSB)    |
-        (QMI_M1_WFMT_PREFIX_LEN_VALUE_8    << QMI_M1_WFMT_PREFIX_LEN_LSB);
-    qmi_hw->m[1].wcmd = (uint32_t)APS6404_CMD_QUAD_WRITE;
-#else
-    /* SPI mode: Fast Read 0x0B with 8-bit (= 1 byte) dummy; ordinary
-     * write command 0x02. All widths Single. */
-    qmi_hw->m[1].rfmt =
-        (QMI_M1_RFMT_PREFIX_LEN_VALUE_8 << QMI_M1_RFMT_PREFIX_LEN_LSB) |
-        (2u                              << QMI_M1_RFMT_DUMMY_LEN_LSB);
-    qmi_hw->m[1].rcmd = 0x0B;  /* SPI Fast Read */
-    qmi_hw->m[1].wfmt =
-        (QMI_M1_RFMT_PREFIX_LEN_VALUE_8 << QMI_M1_WFMT_PREFIX_LEN_LSB);
-    qmi_hw->m[1].wcmd = 0x02;  /* SPI Write */
-#endif
+        (QMI_M1_WFMT_PREFIX_WIDTH_VALUE_Q  << QMI_M1_WFMT_PREFIX_WIDTH_LSB)
+      | (QMI_M1_WFMT_ADDR_WIDTH_VALUE_Q    << QMI_M1_WFMT_ADDR_WIDTH_LSB)
+      | (QMI_M1_WFMT_SUFFIX_WIDTH_VALUE_Q  << QMI_M1_WFMT_SUFFIX_WIDTH_LSB)
+      | (QMI_M1_WFMT_DUMMY_WIDTH_VALUE_Q   << QMI_M1_WFMT_DUMMY_WIDTH_LSB)
+      | (QMI_M1_WFMT_DUMMY_LEN_VALUE_NONE  << QMI_M1_WFMT_DUMMY_LEN_LSB)
+      | (QMI_M1_WFMT_DATA_WIDTH_VALUE_Q    << QMI_M1_WFMT_DATA_WIDTH_LSB)
+      | (QMI_M1_WFMT_PREFIX_LEN_VALUE_8    << QMI_M1_WFMT_PREFIX_LEN_LSB)
+      | (QMI_M1_WFMT_SUFFIX_LEN_VALUE_NONE << QMI_M1_WFMT_SUFFIX_LEN_LSB);
+    qmi_hw->m[1].wcmd = 0x38u << QMI_M1_WCMD_PREFIX_LSB;
 
-release_direct_mode:
-    /* 6. Drop direct mode — XIP through M1 (and M0 for flash) is now live. */
-    qmi_hw->direct_csr &= ~QMI_DIRECT_CSR_EN_BITS;
-    (void)saved_csr;
-    __dmb();
-    restore_interrupts(irq_state);
+    /* (7) Allow XIP to forward writes to the M1 window. Default is
+     *     read-only (CS0 is flash); without this, our writes get
+     *     silently dropped and verify fails reading the prior value. */
+    xip_ctrl_hw->ctrl |= XIP_CTRL_WRITABLE_M1_BITS;
 
-    if (rc_busy_pre) {
-        printf("psram: direct-mode enable BUSY timeout — QMI was stuck\n");
+    /* Derive die size from EID. APS6404 encoding (per Adafruit/AP
+     * Memory data brief, matches CircuitPython):
+     *   eid == 0x26      → 8 MiB
+     *   eid bits 7..5 == 2 → 8 MiB
+     *   eid bits 7..5 == 1 → 4 MiB
+     *   eid bits 7..5 == 0 → 2 MiB
+     * Anything else: assume 1 MiB. */
+    uint32_t size = 1u * 1024u * 1024u;
+    uint8_t sid = (uint8_t)(eid >> 5);
+    if (eid == 0x26 || sid == 2)      size = 8u * 1024u * 1024u;
+    else if (sid == 1)                size = 4u * 1024u * 1024u;
+    else if (sid == 0)                size = 2u * 1024u * 1024u;
+
+    return size;
+}
+
+void psram_init(void) {
+    /* Make sure prints are visible before we touch QMI. */
+    for (int i = 0; i < 20 && !stdio_usb_connected(); i++) busy_wait_ms(50);
+
+    uint8_t kgd = 0, eid = 0;
+    uint32_t irq = save_and_disable_interrupts();
+    uint32_t bytes = psram_init_inner(&kgd, &eid);
+    restore_interrupts(irq);
+
+    s_psram_bytes = bytes;
+
+    printf("psram: jedec kgd=0x%02x eid=0x%02x", kgd, eid);
+    if (!bytes) {
+        printf(" — no APS6404 on QMI CS1 (expected kgd 0x5D)\n");
         fflush(stdout);
         return;
     }
-    if (rc_resetA || rc_resetB) {
-        printf("psram: reset sequence timed out (resetA=%d resetB=%d) — CS pin GPIO%u likely wrong\n",
-               rc_resetA, rc_resetB, PSRAM_CS_PIN);
-        fflush(stdout);
-        return;
-    }
-    if (rc_qpi) {
-        printf("psram: ENTER_QPI timed out (rc=%d)\n", rc_qpi);
-        fflush(stdout);
-        return;
-    }
-    printf("psram: direct-mode init done, M1 configured for QPI XIP\n");
+    uint32_t psclkdiv = (qmi_hw->m[1].timing & QMI_M1_TIMING_CLKDIV_BITS)
+                        >> QMI_M1_TIMING_CLKDIV_LSB;
+    printf(", size=%lu KiB, qspi=%lu MHz (sys/%lu)\n",
+           (unsigned long)(bytes / 1024u),
+           (unsigned long)(clock_get_hz(clk_sys) / psclkdiv / 1000u / 1000u),
+           (unsigned long)psclkdiv);
     fflush(stdout);
 
-    /* 7. Smoke test: try reading a single word from PSRAM first (a
-     *    passive op that won't lock the bus if the chip isn't there),
-     *    then write+read a small pattern. On mismatch we print and
-     *    keep going — the bench still runs and the symptoms (HardFault
-     *    on JIT exec, garbage in output) tell us PSRAM isn't live. */
-    volatile uint32_t *p = PSRAM_BASE;
-    uint32_t first_read = p[0];
-    printf("psram first read: 0x%08lx\n", (unsigned long)first_read);
-    fflush(stdout);
-
-    int mismatches = 0;
-    for (uint32_t i = 0; i < PSRAM_TEST_NWORDS; i++) {
-        p[i] = 0xA5A5A500u | (i & 0xff);
+    /* (8) Smoke test through the no-cache alias so XIP cache hits
+     *     can't fake a pass. Walk 256 KiB to catch addressing/data
+     *     bugs without spending the entire init budget on RAM check. */
+    volatile uint32_t *p = PSRAM_BASE_NOCACHE;
+    const uint32_t test_words = 64 * 1024;
+    for (uint32_t i = 0; i < test_words; i++) {
+        p[i] = i ^ 0xa5a5a5a5u;
     }
     __dmb();
-    for (uint32_t i = 0; i < PSRAM_TEST_NWORDS; i++) {
-        uint32_t expect = 0xA5A5A500u | (i & 0xff);
-        if (p[i] != expect) {
-            if (mismatches < 4) {
-                printf("PSRAM mismatch at 0x%08lx: got 0x%08lx, want 0x%08lx\n",
-                       (unsigned long)(uintptr_t)&p[i],
-                       (unsigned long)p[i], (unsigned long)expect);
-            }
-            mismatches++;
-        }
+    uint32_t errors = 0;
+    for (uint32_t i = 0; i < test_words; i++) {
+        uint32_t want = i ^ 0xa5a5a5a5u;
+        if (p[i] != want) errors++;
     }
-    if (mismatches == 0) {
-        printf("psram verify ok (%u words @ 0x11000000)\n", PSRAM_TEST_NWORDS);
+    if (errors == 0) {
+        printf("psram: verify ok (%lu KiB walked)\n",
+               (unsigned long)(test_words * 4u / 1024u));
     } else {
-        printf("psram verify FAIL: %d/%u mismatches\n", mismatches, PSRAM_TEST_NWORDS);
+        printf("psram: verify FAIL — %lu / %lu words mismatched\n",
+               (unsigned long)errors, (unsigned long)test_words);
+        s_psram_bytes = 0;
     }
     fflush(stdout);
 }

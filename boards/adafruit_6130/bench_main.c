@@ -15,6 +15,7 @@
 #include <string.h>
 #include <stdint.h>
 
+#include "pico/stdlib.h"
 #include "saturn_state.h"
 #include "saturn_interp.h"
 #include "saturn_jit.h"
@@ -27,6 +28,17 @@ extern int thumb2_selftest(char *err_out, int errlen);
 extern void psram_init(void);
 extern void jit_psram_flush_after_emit(void);
 
+/* Overclock is configured fully at compile time via CMake:
+ *   SYS_CLOCK_KHZ              — target sys_clk (e.g. 300000, 400000)
+ *   PLL_SYS_VCO_FREQ_HZ/PD1/PD2 — accompanying PLL config (from vcocalc.py)
+ *   SYS_CLK_VREG_VOLTAGE_AUTO_ADJUST=1 + SYS_CLK_VREG_VOLTAGE_MIN=VREG_VOLTAGE_1_xx
+ *                              — SDK bumps VDD core BEFORE PLL_SYS comes up
+ * Nothing for clocks needs to happen at runtime; main() can assume
+ * the requested freq is already live. */
+#ifndef SYS_CLOCK_KHZ
+#define SYS_CLOCK_KHZ 0
+#endif
+
 /* --- JIT cache buffer ---------------------------------------------- */
 #ifndef JIT_CACHE_BYTES
 #define JIT_CACHE_BYTES (256u * 1024u)
@@ -34,13 +46,23 @@ extern void jit_psram_flush_after_emit(void);
 
 #if defined(JIT_CACHE_REGION_PSRAM)
 /* SDK 2.2 doesn't ship a `.psram_data` section for this board, so we
- * skip the linker and point directly into the PSRAM XIP window at
- * 0x11000000. psram_init() configures QMI CS1 + the XIP mapping
- * before this buffer is touched. The size is whatever JIT_CACHE_BYTES
- * is, capped at 8 MiB by the PSRAM chip. */
+ * skip the linker and point directly into the PSRAM XIP window.
+ * psram_init() configures QMI CS1 + the XIP mapping before this
+ * buffer is touched. The size is whatever JIT_CACHE_BYTES is,
+ * capped at 8 MiB by the PSRAM chip.
+ *
+ *   0x11000000 — cached (default; XIP-cache backed)
+ *   0x15000000 — uncached alias (bypass XIP cache, every read/write
+ *                round-trips to PSRAM over QSPI). Use this to
+ *                measure the unhidden cost of PSRAM. */
+#ifdef PSRAM_NOCACHE
+static uint8_t *const g_jit_cache_buf = (uint8_t *)0x15000000u;
+static const char *g_jit_cache_region_name = "psram-nocache";
+#else
 static uint8_t *const g_jit_cache_buf = (uint8_t *)0x11000000u;
-static const uint32_t g_jit_cache_size = JIT_CACHE_BYTES;
 static const char *g_jit_cache_region_name = "psram";
+#endif
+static const uint32_t g_jit_cache_size = JIT_CACHE_BYTES;
 #else
 /* Default: on-chip SRAM. */
 __attribute__((aligned(64)))
